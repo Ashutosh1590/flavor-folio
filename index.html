@@ -1,0 +1,1024 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Flavor Folio</title>
+    <link rel="icon" type="image/png" id="favicon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🍃</text></svg>" />
+    <link rel="stylesheet" href="style.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;0,9..144,900;1,9..144,700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+    <!-- Tesseract.js for OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  </head>
+  <body>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- ══════════════════ ONBOARDING ══════════════════ -->
+    <div class="screen active" id="screen-ob">
+      <!-- Language Selection Slide -->
+      <div class="ob-slide on" id="obs-lang">
+        <div class="ob-logo">
+          <div class="ob-mark">🍃</div>
+          <div class="ob-brand">Flavor Folio</div>
+        </div>
+        <div class="ob-art" style="background:linear-gradient(160deg,#e8f1fd,#fff)">🌍</div>
+        <div class="ob-content">
+          <div class="ob-dots">
+            <div class="ob-dot on"></div>
+            <div class="ob-dot"></div>
+            <div class="ob-dot"></div>
+            <div class="ob-dot"></div>
+          </div>
+          <div class="ob-title">Choose Your Language<br/>Elige tu idioma</div>
+          <div class="ob-body">Select your preferred language to get started</div>
+          <div style="display:grid;gap:12px;margin:24px 0">
+            <button class="lang-btn" onclick="selectLanguage('en')">
+              <div class="lang-flag">🇺🇸</div>
+              <div class="lang-name">English</div>
+              <div class="lang-check" id="check-en">✓</div>
+            </button>
+            <button class="lang-btn" onclick="selectLanguage('es')">
+              <div class="lang-flag">🇪🇸</div>
+              <div class="lang-name">Español</div>
+              <div class="lang-check" id="check-es"></div>
+            </button>
+          </div>
+          <button class="ob-btn" onclick="obNext()" data-i18n="continue">Continue →</button>
+        </div>
+      </div>
+      
+      <div class="ob-slide" id="obs0">
+        <div class="ob-logo">
+          <div class="ob-mark">🍃</div>
+          <div class="ob-brand">Flavor Folio</div>
+        </div>
+        <div class="ob-art" style="background:linear-gradient(160deg,#ebf7d8,#fff)">🔪</div>
+        <div class="ob-content">
+          <div class="ob-dots">
+            <div class="ob-dot"></div>
+            <div class="ob-dot on"></div>
+            <div class="ob-dot"></div>
+            <div class="ob-dot"></div>
+          </div>
+          <div class="ob-title" data-i18n="ob_title_1">Built for the Line,<br/>Not the Living Room</div>
+          <div class="ob-body" data-i18n="ob_body_1">A professional recipe &amp; prep management tool designed for the speed and precision of kitchen service.</div>
+          <button class="ob-btn" onclick="obNext()" data-i18n="next">Next →</button>
+          <div class="ob-skip" onclick="navigate('home')" data-i18n="skip">Skip intro</div>
+        </div>
+      </div>
+      <div class="ob-slide" id="obs1">
+        <div class="ob-art" style="background:linear-gradient(160deg,#fef0e4,#fff)">📋</div>
+        <div class="ob-content">
+          <div class="ob-dots">
+            <div class="ob-dot"></div>
+            <div class="ob-dot"></div>
+            <div class="ob-dot on"></div>
+            <div class="ob-dot"></div>
+          </div>
+          <div class="ob-title" data-i18n="ob_title_2">Prep Lists with Expiry Alerts</div>
+          <div class="ob-body" data-i18n="ob_body_2">Track tasks by station in real kitchen units — batch, pan, case — and get alerts before items expire mid-service.</div>
+          <button class="ob-btn" onclick="obNext()" data-i18n="next">Next →</button>
+          <div class="ob-skip" onclick="navigate('home')" data-i18n="skip">Skip intro</div>
+        </div>
+      </div>
+      <div class="ob-slide" id="obs2">
+        <div class="ob-art" style="background:linear-gradient(160deg,#e8f1fd,#fff)">📸</div>
+        <div class="ob-content">
+          <div class="ob-dots">
+            <div class="ob-dot"></div>
+            <div class="ob-dot"></div>
+            <div class="ob-dot"></div>
+            <div class="ob-dot on"></div>
+          </div>
+          <div class="ob-title" data-i18n="ob_title_3">Import Recipes in Seconds</div>
+          <div class="ob-body" data-i18n="ob_body_3">Type manually, paste a link, or scan a printed recipe card. Allergens and timers are auto-tagged.</div>
+          <button class="ob-btn" onclick="finishOnboarding()" data-i18n="enter_kitchen">Enter the Kitchen 🔥</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ HOME ══════════════════ -->
+    <div class="screen" id="screen-home">
+      <div class="top-bar">
+        <div class="sb"><span class="sb-t" id="clock">9:41</span></div>
+        <div class="hdr">
+          <div class="hrow">
+            <div>
+              <div class="hsub" id="home-greeting">Good morning 🔪</div>
+              <div class="htitle" id="home-name">Chef</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn-ico" onclick="showM('m-calc')" title="Converter">⚖️</button>
+              <button class="btn-ico" onclick="navigate('timer')">⏱️</button>
+              <div class="avatar-btn" id="home-avatar" onclick="navigate('profile')">A</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="scroll">
+        <div class="shift">
+          <div>
+            <div class="shift-sl" data-i18n="tonight_shift">Tonight's Shift</div>
+            <div class="shift-s" id="home-station">Sauté Station</div>
+          </div>
+          <div style="text-align:right">
+            <div class="shift-t" id="home-service-time">6:00 PM</div>
+            <div style="font-size:11px;opacity:.38;margin-top:3px" id="home-service-countdown">Service tonight</div>
+          </div>
+        </div>
+        <div class="atimer" id="home-active-timer" style="display:none">
+          <div>
+            <div class="atimer-l" id="home-timer-lbl">Timer</div>
+            <div class="atimer-t" id="homeT">00:00:00</div>
+          </div>
+          <button class="atimer-btn" onclick="navigate('timer')">View →</button>
+        </div>
+        <div class="hero" onclick="navigate('prep')">
+          <div class="hero-ey" data-i18n="todays_prep_list">⚡ Today's Prep List</div>
+          <div class="hero-ttl" id="home-prep-count" data-i18n="loading">Loading…</div>
+          <div class="hero-sub" id="home-prep-sub" data-i18n="tap_to_view">Tap to view</div>
+          <div class="hero-pill">
+            <div class="n" id="home-urgent-count">0</div>
+            <div class="l" data-i18n="urgent">URGENT</div>
+          </div>
+        </div>
+        <div class="sgrid">
+          <div class="scard" onclick="navigate('recipes')">
+            <div class="scard-v" id="home-recipe-count">0</div>
+            <div class="scard-l" data-i18n="recipes_count">Recipes</div>
+          </div>
+          <div class="scard" onclick="navigate('prep')">
+            <div class="scard-v" id="home-prep-stat">0/0</div>
+            <div class="scard-l" data-i18n="prep_done">Prep Done</div>
+          </div>
+        </div>
+        <div class="sec-row">
+          <span data-i18n="recent_recipes">Recent Recipes</span>
+          <span onclick="navigate('recipes')" data-i18n="see_all">See all →</span>
+        </div>
+        <div class="rscroll" id="home-recipe-scroll">
+          <div class="rcard-empty" data-i18n="no_recipes_yet">No recipes yet — add one in Recipes 📖</div>
+        </div>
+        <div class="sec-row" style="padding-top:4px">
+          <span data-i18n="urgent_prep">Urgent Prep</span>
+          <span onclick="navigate('prep')" data-i18n="full_list">Full list →</span>
+        </div>
+        <div class="qprep" id="home-urgent-list">
+          <div class="empty-state" style="padding:20px;text-align:center;color:var(--s3);font-size:13px" data-i18n="no_urgent_tasks">No urgent tasks 🎉</div>
+        </div>
+        <div style="height:8px"></div>
+      </div>
+      <div class="bnav">
+        <div class="ni on" onclick="navigate('home')"><div class="ni-i">🏠</div><div class="ni-l" data-i18n="home">Home</div><div class="ni-dot"></div></div>
+        <div class="ni" onclick="navigate('recipes')"><div class="ni-i">📖</div><div class="ni-l" data-i18n="recipes">Recipes</div></div>
+        <div style="flex:1;display:flex;justify-content:center"><div class="fab" onclick="navigate('timer')" style="position:relative">⏱️<div class="timer-badge" style="display:none"></div></div></div>
+        <div class="ni" onclick="navigate('prep')"><div class="ni-i">📋</div><div class="ni-l" data-i18n="prep">Prep</div></div>
+        <div class="ni" onclick="navigate('profile')"><div class="ni-i">👤</div><div class="ni-l" data-i18n="profile">Profile</div></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ RECIPES ══════════════════ -->
+    <div class="screen" id="screen-recipes">
+      <div class="top-bar">
+        <div class="sb"><span class="sb-t" id="clock-r">9:41</span></div>
+        <div class="hdr">
+          <div class="hrow">
+            <div class="htitle">Recipes</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn-ico" onclick="showM('m-calc')">⚖️</button>
+              <button class="btn-ico accent" onclick="showM('m-addrecipe')">＋</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="scroll">
+        <div class="search">
+          <span style="font-size:17px;color:var(--s3)">🔍</span>
+          <input type="text" id="recipe-search" placeholder="Search recipes, stations…" oninput="filterRecipes()" />
+        </div>
+        <div class="chips" id="recipe-chips">
+          <div class="chip on" onclick="filterByCategory(this,'all')">All</div>
+          <div class="chip" onclick="filterByCategory(this,'main')">Mains</div>
+          <div class="chip" onclick="filterByCategory(this,'sauce')">Sauces</div>
+          <div class="chip" onclick="filterByCategory(this,'starter')">Starters</div>
+          <div class="chip" onclick="filterByCategory(this,'dessert')">Dessert</div>
+          <div class="chip" onclick="filterByCategory(this,'garnish')">Garnish</div>
+        </div>
+        <div id="recipe-list">
+          <div class="empty-state">No recipes yet.<br/>Tap <strong>＋</strong> to add your first recipe.</div>
+        </div>
+      </div>
+      <div class="bnav">
+        <div class="ni" onclick="navigate('home')"><div class="ni-i">🏠</div><div class="ni-l" data-i18n="home">Home</div></div>
+        <div class="ni on" onclick="navigate('recipes')"><div class="ni-i">📖</div><div class="ni-l" data-i18n="recipes">Recipes</div><div class="ni-dot"></div></div>
+        <div style="flex:1;display:flex;justify-content:center"><div class="fab" onclick="navigate('timer')" style="position:relative">⏱️<div class="timer-badge" style="display:none"></div></div></div>
+        <div class="ni" onclick="navigate('prep')"><div class="ni-i">📋</div><div class="ni-l" data-i18n="prep">Prep</div></div>
+        <div class="ni" onclick="navigate('profile')"><div class="ni-i">👤</div><div class="ni-l" data-i18n="profile">Profile</div></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ RECIPE DETAIL ══════════════════ -->
+    <div class="screen" id="screen-detail">
+      <div class="rhero" id="detail-hero" style="background:linear-gradient(135deg,#0e2004,#2d6312);flex-shrink:0">
+        <span id="detail-emoji">🍽</span>
+        <button class="back-btn" onclick="navigate('recipes')">←</button>
+        <button class="edit-btn" onclick="editCurrentRecipe()">✏️</button>
+        <div class="rhero-ov">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <div class="rhero-ttl" id="detail-title">Recipe</div>
+            <div class="rhero-time" id="detail-time-badge"></div>
+          </div>
+          <div class="rhero-sub" id="detail-sub">Loading…</div>
+        </div>
+      </div>
+      <div class="scroll">
+        <div style="height:10px"></div>
+        <div class="yield">
+          <div class="yield-lbl">🔢 Scale portions</div>
+          <button class="ybtn" onclick="adjY(-1)">−</button>
+          <div class="yval" id="yv">1</div>
+          <button class="ybtn" onclick="adjY(1)">+</button>
+        </div>
+        <div class="dvdr"></div>
+        <div style="background:var(--w);margin-bottom:4px">
+          <div class="sec">⚠️ Allergens</div>
+          <div class="allerg" id="detail-allergens"></div>
+        </div>
+        <div class="dvdr"></div>
+        <div style="background:var(--w);padding:4px 0;margin-bottom:4px">
+          <div style="display:flex;align-items:center;gap:9px;padding:13px 18px 10px">
+            <span style="font-size:21px">🧺</span>
+            <span style="font-family:'Fraunces',serif;font-size:17px;font-weight:700;color:var(--ink)">Ingredients</span>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+              <span style="font-size:12px;color:var(--s3)">× <span id="ym">1</span></span>
+            </div>
+          </div>
+        </div>
+        <div id="detail-ingredients"></div>
+        <div class="dvdr"></div>
+        <div style="background:var(--w);padding:4px 0;margin-bottom:4px">
+          <div style="display:flex;align-items:center;gap:9px;padding:13px 18px 10px">
+            <span style="font-size:21px">🍳</span>
+            <span style="font-family:'Fraunces',serif;font-size:17px;font-weight:700;color:var(--ink)">Method</span>
+          </div>
+        </div>
+        <div id="detail-method"></div>
+        <div class="actions">
+          <button class="abtn d" onclick="navigate('plating')">🍽 View Plating Guide</button>
+          <button class="abtn p" onclick="addDetailToPrep()">📋 Add to Prep List</button>
+          <button class="abtn s" onclick="navigate('timer')">⏱ Start Timer</button>
+          <button class="abtn danger" onclick="deleteCurrentRecipe()">🗑 Delete Recipe</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ PREP LIST ══════════════════ -->
+    <div class="screen" id="screen-prep">
+      <div class="top-bar">
+        <div class="sb"><span class="sb-t" id="clock-p">9:41</span></div>
+        <div class="hdr">
+          <div class="hrow">
+            <div>
+              <div class="hsub" id="prep-date">Today</div>
+              <div class="htitle">Prep List</div>
+            </div>
+            <button class="btn-ico accent" onclick="showM('m-addprep')">＋</button>
+          </div>
+          <div style="margin-top:11px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+              <span style="font-size:12px;color:var(--s4)" id="prep-progress-text">0 of 0 complete</span>
+              <span style="font-size:12px;font-weight:700;color:var(--gd)" id="prep-progress-pct">0%</span>
+            </div>
+            <div class="pbar"><div class="pfill" id="prep-pfill" style="width:0%"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="scroll">
+        <div class="chips" id="prep-chips" style="padding-top:13px">
+          <div class="chip on" onclick="filterPrep(this,'all')">All</div>
+          <div class="chip" onclick="filterPrep(this,'urgent')">Urgent</div>
+          <div class="chip" onclick="filterPrep(this,'today')">Today</div>
+          <div class="chip" onclick="filterPrep(this,'done')">Done</div>
+        </div>
+        <div class="chips" style="padding-top:8px;padding-bottom:4px">
+          <div class="chip" onclick="filterPrepByDay(this,'monday')">Mon</div>
+          <div class="chip" onclick="filterPrepByDay(this,'tuesday')">Tue</div>
+          <div class="chip" onclick="filterPrepByDay(this,'wednesday')">Wed</div>
+          <div class="chip" onclick="filterPrepByDay(this,'thursday')">Thu</div>
+          <div class="chip" onclick="filterPrepByDay(this,'friday')">Fri</div>
+          <div class="chip" onclick="filterPrepByDay(this,'saturday')">Sat</div>
+          <div class="chip" onclick="filterPrepByDay(this,'sunday')">Sun</div>
+        </div>
+        <div id="prep-list">
+          <div class="empty-state">No prep tasks yet.<br/>Tap <strong>＋</strong> to add your first task.</div>
+        </div>
+        <div style="height:10px"></div>
+      </div>
+      <div class="bnav">
+        <div class="ni" onclick="navigate('home')"><div class="ni-i">🏠</div><div class="ni-l" data-i18n="home">Home</div></div>
+        <div class="ni" onclick="navigate('recipes')"><div class="ni-i">📖</div><div class="ni-l" data-i18n="recipes">Recipes</div></div>
+        <div style="flex:1;display:flex;justify-content:center"><div class="fab" onclick="navigate('timer')" style="position:relative">⏱️<div class="timer-badge" style="display:none"></div></div></div>
+        <div class="ni on" onclick="navigate('prep')"><div class="ni-i">📋</div><div class="ni-l" data-i18n="prep">Prep</div><div class="ni-dot"></div></div>
+        <div class="ni" onclick="navigate('profile')"><div class="ni-i">👤</div><div class="ni-l" data-i18n="profile">Profile</div></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ TIMERS ══════════════════ -->
+    <div class="screen" id="screen-timer">
+      <div class="top-bar">
+        <div class="sb"><span class="sb-t" id="clock-t">9:41</span></div>
+        <div class="hdr">
+          <div class="hrow">
+            <div class="htitle" data-i18n="timers">Timers</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn-ico" onclick="showM('m-calc')">⚖️</button>
+              <button class="btn-ico accent" onclick="showM('m-addtimer')">＋</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="scroll">
+        <div id="no-timers" style="display:none;flex-direction:column;align-items:center;justify-content:center;padding:60px 32px;text-align:center;min-height:300px">
+          <div style="font-size:72px;margin-bottom:16px;opacity:0.9">⏱️</div>
+          <div style="font-family:'Fraunces',serif;font-size:22px;font-weight:700;color:var(--ink);margin-bottom:8px" data-i18n="no_active_timers">No Active Timers</div>
+          <div style="font-size:14px;color:var(--s4);line-height:1.6;margin-bottom:24px;max-width:280px" data-i18n="start_timer_desc">Start a timer to track your cooking times with precision</div>
+          <button class="mbtn p" onclick="showM('m-addtimer')" style="max-width:240px" data-i18n="start_a_timer">Start a Timer ⏱️</button>
+        </div>
+        <div id="timer-list"></div>
+        <div class="sec" id="timer-common-section" style="padding-top:12px;padding-bottom:8px" data-i18n="common_tasks">Common Tasks</div>
+        <div id="timer-common-container" style="margin:0 16px;background:var(--w);border-radius:18px;padding:14px;box-shadow:var(--shadow-sm)">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <button class="common-timer-btn-compact" onclick="quickAddTimer(12, '🥚 Hard Boiled Eggs')">
+              <span style="font-size:24px">🥚</span>
+              <div style="flex:1;text-align:left">
+                <div style="font-weight:700;font-size:12px" data-i18n="hard_boiled">Hard Boiled</div>
+                <div style="font-size:10px;color:var(--s3);margin-top:1px">12 <span data-i18n="min">min</span></div>
+              </div>
+            </button>
+            <button class="common-timer-btn-compact" onclick="quickAddTimer(2, '🥬 Blanch Greens')">
+              <span style="font-size:24px">🥬</span>
+              <div style="flex:1;text-align:left">
+                <div style="font-weight:700;font-size:12px" data-i18n="blanch_greens">Blanch Greens</div>
+                <div style="font-size:10px;color:var(--s3);margin-top:1px">2 <span data-i18n="min">min</span></div>
+              </div>
+            </button>
+            <button class="common-timer-btn-compact" onclick="quickAddTimer(8, '🍝 Dry Pasta')">
+              <span style="font-size:24px">🍝</span>
+              <div style="flex:1;text-align:left">
+                <div style="font-weight:700;font-size:12px" data-i18n="dry_pasta">Dry Pasta</div>
+                <div style="font-size:10px;color:var(--s3);margin-top:1px">8 <span data-i18n="min">min</span></div>
+              </div>
+            </button>
+            <button class="common-timer-btn-compact" onclick="quickAddTimer(18, '🍚 White Rice')">
+              <span style="font-size:24px">🍚</span>
+              <div style="flex:1;text-align:left">
+                <div style="font-weight:700;font-size:12px" data-i18n="white_rice">White Rice</div>
+                <div style="font-size:10px;color:var(--s3);margin-top:1px">18 <span data-i18n="min">min</span></div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="bnav">
+        <div class="ni" onclick="navigate('home')"><div class="ni-i">🏠</div><div class="ni-l" data-i18n="home">Home</div></div>
+        <div class="ni" onclick="navigate('recipes')"><div class="ni-i">📖</div><div class="ni-l" data-i18n="recipes">Recipes</div></div>
+        <div style="flex:1;display:flex;justify-content:center"><div class="fab on" onclick="navigate('timer')">⏱️</div></div>
+        <div class="ni" onclick="navigate('prep')"><div class="ni-i">📋</div><div class="ni-l" data-i18n="prep">Prep</div></div>
+        <div class="ni" onclick="navigate('profile')"><div class="ni-i">👤</div><div class="ni-l" data-i18n="profile">Profile</div></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ PLATING GUIDE ══════════════════ -->
+    <div class="screen" id="screen-plating">
+      <div class="top-bar">
+        <div class="sb"><span class="sb-t">9:41</span></div>
+        <div class="hdr">
+          <div class="hrow">
+            <div style="display:flex;align-items:center;gap:9px">
+              <button class="btn-ico" onclick="navigate('detail')">←</button>
+              <div class="htitle">Plating Guide</div>
+            </div>
+            <button class="btn-ico accent" onclick="openEditPlating()">✏️</button>
+          </div>
+          <div style="font-size:12px;color:var(--s4);margin-top:5px" id="plating-recipe-name">Duck Confit · Sauté Station</div>
+        </div>
+      </div>
+      <div class="scroll">
+        <div style="margin:16px 16px 14px;background:var(--w);border-radius:22px;padding:22px;box-shadow:var(--shadow-md)" id="plating-photo-container">
+          <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--s3);margin-bottom:14px">Plate Reference Photo</div>
+          <div id="plating-photo-display" style="width:100%;aspect-ratio:4/3;background:var(--s1);border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden">
+            <div style="text-align:center;color:var(--s3);font-size:13px;padding:24px">
+              <div style="font-size:48px;margin-bottom:8px;opacity:0.5">📸</div>
+              <div>No photo added yet</div>
+              <div style="font-size:11px;margin-top:4px">Tap ✏️ to add a photo</div>
+            </div>
+          </div>
+        </div>
+        <div class="sec" style="padding-top:4px">Plating Sequence</div>
+        <div style="margin:0 16px 14px" id="plating-sequence-container">
+          <div class="ps-seq"><div class="ps-n">1</div><div class="ps-txt">Warm plate in pass (60°C) · 30 sec</div></div>
+          <div class="ps-seq"><div class="ps-n">2</div><div class="ps-txt">Swoosh jus across plate from 7 → 1 o'clock</div></div>
+          <div class="ps-seq"><div class="ps-n">3</div><div class="ps-txt">Quenelle celeriac purée at 9 o'clock · 60g</div></div>
+          <div class="ps-seq"><div class="ps-n">4</div><div class="ps-txt">Place duck leg, skin-side up, centre plate</div></div>
+          <div class="ps-seq"><div class="ps-n">5</div><div class="ps-txt">Stack haricots verts against purée</div></div>
+          <div class="ps-seq"><div class="ps-n">6</div><div class="ps-txt">Drop 3 jus dots · scatter 5 micro herbs</div></div>
+          <div class="ps-seq"><div class="ps-n">7</div><div class="ps-txt">Wipe rim · call the pass</div></div>
+        </div>
+        <div class="chef-box" id="plating-notes-display">
+          <div class="chef-lbl">Chef's Notes</div>
+          <div class="chef-txt">Wipe the rim before service. Duck must rest 2 min off heat before plating. Purée should hold the haricots, not pool. Jus swoosh goes down first, always.</div>
+          <div class="chef-date">Flavor Folio · Plating Reference</div>
+        </div>
+        <div style="height:8px"></div>
+      </div>
+      <div class="bnav">
+        <div class="ni" onclick="navigate('home')"><div class="ni-i">🏠</div><div class="ni-l" data-i18n="home">Home</div></div>
+        <div class="ni on" onclick="navigate('recipes')"><div class="ni-i">📖</div><div class="ni-l" data-i18n="recipes">Recipes</div><div class="ni-dot"></div></div>
+        <div style="flex:1;display:flex;justify-content:center"><div class="fab" onclick="navigate('timer')" style="position:relative">⏱️<div class="timer-badge" style="display:none"></div></div></div>
+        <div class="ni" onclick="navigate('prep')"><div class="ni-i">📋</div><div class="ni-l" data-i18n="prep">Prep</div></div>
+        <div class="ni" onclick="navigate('profile')"><div class="ni-i">👤</div><div class="ni-l" data-i18n="profile">Profile</div></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ PROFILE ══════════════════ -->
+    <div class="screen" id="screen-profile">
+      <div class="scroll" style="padding-bottom:82px">
+        <div class="prof-hero">
+          <div class="sb" style="color:#fff"><span class="sb-t" style="color:rgba(255,255,255,.9)">9:41</span></div>
+          <div class="pavatar" id="profile-avatar">A</div>
+          <div class="p-name" id="profile-name">Chef</div>
+          <div class="p-role" id="profile-role">Line Cook</div>
+          <div class="p-spill" id="profile-station">🔥 Station</div>
+        </div>
+        <div class="pstats">
+          <div class="pst"><div class="pst-n" id="stat-recipes">0</div><div class="pst-l">Recipes</div></div>
+          <div class="pst"><div class="pst-n" id="stat-preps">0</div><div class="pst-l">Preps Done</div></div>
+          <div class="pst"><div class="pst-n" id="stat-timers">0</div><div class="pst-l">Timers Run</div></div>
+        </div>
+        <div class="pgrp">
+          <div class="pgrp-sec" data-i18n="settings">Settings</div>
+          <div class="popt" onclick="showM('m-edit-profile')">
+            <div class="popt-i" style="background:#E8F1FD">⚙️</div>
+            <div style="flex:1"><div class="popt-ttl" data-i18n="edit_profile">Edit Profile</div><div class="popt-sub">Name, role, station, service time</div></div>
+            <div style="font-size:20px;color:var(--s2)">›</div>
+          </div>
+          <div class="popt" onclick="showM('m-language')">
+            <div class="popt-i" style="background:#FEF0E4">🌍</div>
+            <div style="flex:1">
+              <div class="popt-ttl" data-i18n="language_settings">Language</div>
+              <div class="popt-sub" id="current-lang-display">English</div>
+            </div>
+            <div style="font-size:20px;color:var(--s2)">›</div>
+          </div>
+          <div class="popt" onclick="toggleDarkMode()">
+            <div class="popt-i" style="background:#E8E8F0">🌙</div>
+            <div style="flex:1">
+              <div class="popt-ttl">Dark Mode</div>
+              <div class="popt-sub" id="dark-mode-status">Off</div>
+            </div>
+            <div style="font-size:20px;color:var(--s2)">›</div>
+          </div>
+          <div class="popt" onclick="showM('m-calc')">
+            <div class="popt-i" style="background:var(--gl)">⚖️</div>
+            <div style="flex:1"><div class="popt-ttl" data-i18n="conversion_calc">Conversion Calculator</div><div class="popt-sub">Weight, volume, temp, portions</div></div>
+            <div style="font-size:20px;color:var(--s2)">›</div>
+          </div>
+        </div>
+        <div class="pgrp">
+          <div class="pgrp-sec" data-i18n="data_management">Data</div>
+          <div class="popt" onclick="exportData()">
+            <div class="popt-i" style="background:var(--gl)">📤</div>
+            <div style="flex:1"><div class="popt-ttl" data-i18n="export_data">Export All Data</div><div class="popt-sub" data-i18n="export_desc">Download your recipes &amp; prep as JSON</div></div>
+            <div style="font-size:20px;color:var(--s2)">›</div>
+          </div>
+          <div class="popt" onclick="clearAllData()">
+            <div class="popt-i" style="background:#FCEAEA">🗑</div>
+            <div style="flex:1"><div class="popt-ttl" style="color:var(--red)" data-i18n="clear_all_data">Clear All Data</div><div class="popt-sub" data-i18n="clear_desc">Wipe everything and start fresh</div></div>
+            <div style="font-size:20px;color:var(--s2)">›</div>
+          </div>
+        </div>
+        <div class="pgrp">
+          <div class="pgrp-sec" data-i18n="about">App</div>
+          <div class="popt" onclick="navigate('ob')">
+            <div class="popt-i" style="background:#FCEAEA">🚪</div>
+            <div style="flex:1"><div class="popt-ttl" style="color:var(--red)">Back to Intro</div><div class="popt-sub">View the onboarding again</div></div>
+            <div style="font-size:20px;color:var(--s2)">›</div>
+          </div>
+        </div>
+        <div style="text-align:center;padding:18px;font-size:10.5px;color:var(--s3);letter-spacing:.8px">FLAVOR FOLIO v1.0 · BUILT FOR THE LINE</div>
+      </div>
+      <div class="bnav">
+        <div class="ni" onclick="navigate('home')"><div class="ni-i">🏠</div><div class="ni-l" data-i18n="home">Home</div></div>
+        <div class="ni" onclick="navigate('recipes')"><div class="ni-i">📖</div><div class="ni-l" data-i18n="recipes">Recipes</div></div>
+        <div style="flex:1;display:flex;justify-content:center"><div class="fab" onclick="navigate('timer')" style="position:relative">⏱️<div class="timer-badge" style="display:none"></div></div></div>
+        <div class="ni" onclick="navigate('prep')"><div class="ni-i">📋</div><div class="ni-l" data-i18n="prep">Prep</div></div>
+        <div class="ni on" onclick="navigate('profile')"><div class="ni-i">👤</div><div class="ni-l" data-i18n="profile">Profile</div><div class="ni-dot"></div></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ MODALS ══════════════════ -->
+
+    <!-- ADD RECIPE - Selection Screen -->
+    <div class="overlay" id="m-addrecipe" onclick="bgC(event,'m-addrecipe')">
+      <div class="modal">
+        <div class="mhandle"></div>
+        <div class="mtitle" data-i18n="add_new_recipe">Add New Recipe</div>
+        <div class="msub" data-i18n="choose_method">Choose how you'd like to add your recipe.</div>
+        
+        <div class="mopt" onclick="closeM('m-addrecipe');showM('m-manual-entry')">
+          <div class="mopt-i" style="background:var(--gl)">✍️</div>
+          <div style="flex:1">
+            <div class="mopt-ttl" data-i18n="manual_entry">Manual Entry</div>
+            <div class="mopt-sub" data-i18n="manual_desc">Type in all recipe details</div>
+          </div>
+          <div class="mopt-arr">›</div>
+        </div>
+
+        <div class="mopt" onclick="importFromCamera()">
+          <div class="mopt-i" style="background:#E8F1FD">📸</div>
+          <div style="flex:1">
+            <div class="mopt-ttl" data-i18n="camera_import">Camera Import</div>
+            <div class="mopt-sub" data-i18n="camera_desc">Scan a recipe card or page</div>
+          </div>
+          <div class="mopt-arr">›</div>
+        </div>
+
+        <div class="mopt" onclick="closeM('m-addrecipe');showM('m-import-link')">
+          <div class="mopt-i" style="background:#FEF0E4">🔗</div>
+          <div style="flex:1">
+            <div class="mopt-ttl" data-i18n="import_link">Import Link</div>
+            <div class="mopt-sub" data-i18n="import_link_desc">Paste a URL from the web</div>
+          </div>
+          <div class="mopt-arr">›</div>
+        </div>
+
+        <button class="mbtn s" onclick="closeM('m-addrecipe')" style="margin-top:6px" data-i18n="cancel">Cancel</button>
+      </div>
+    </div>
+
+    <!-- MANUAL ENTRY FORM -->
+    <div class="overlay" id="m-manual-entry" onclick="bgC(event,'m-manual-entry')">
+      <div class="modal">
+        <div class="mhandle"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div class="mtitle" style="margin:0" data-i18n="manual_entry">Manual Entry</div>
+          <button class="btn-ico" onclick="openCameraForRecipe()" title="Add Photo">📸</button>
+        </div>
+        <div class="msub" data-i18n="fill_details">Fill in all the recipe details below.</div>
+        
+        <label class="flbl" data-i18n="recipe_name_req">Recipe Name *</label>
+        <input class="finput" id="r-name" type="text" data-i18n-placeholder="recipe_name_placeholder" placeholder="e.g. Duck Confit" />
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:11px">
+          <div>
+            <label class="flbl" data-i18n="cook_time">Cook Time (HH:MM) *</label>
+            <input class="finput" style="margin:0;font-family:'JetBrains Mono',monospace;letter-spacing:1px" id="r-time" type="text" data-i18n-placeholder="cook_time_placeholder" placeholder="01:30" maxlength="5" oninput="formatTimeInput(this)" />
+          </div>
+          <div>
+            <label class="flbl" data-i18n="portions_label">Portions *</label>
+            <input class="finput" style="margin:0" id="r-portions" type="number" min="1" data-i18n-placeholder="portions_placeholder" placeholder="4" />
+          </div>
+        </div>
+        
+        <label class="flbl" data-i18n="category">Category *</label>
+        <select class="finput" id="r-category">
+          <option value="" data-i18n="select_category">Select category...</option>
+          <option value="main" data-i18n="main">Main</option>
+          <option value="starter" data-i18n="appetizer">Starter</option>
+          <option value="dessert" data-i18n="dessert">Dessert</option>
+          <option value="sauce" data-i18n="sauce">Sauce</option>
+          <option value="garnish" data-i18n="side">Garnish</option>
+        </select>
+        
+        <!-- Ingredients Section -->
+        <div style="margin-top:20px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <span style="font-size:18px">🧺</span>
+            <span style="font-family:'Fraunces',serif;font-size:17px;font-weight:700;color:var(--ink)" data-i18n="ingredients">Ingredients</span>
+          </div>
+        </div>
+        
+        <div id="ingredients-list"></div>
+        
+        <button class="mbtn s" onclick="addIngredientRow()" style="margin-bottom:20px" data-i18n="add_ingredient">＋ Add Ingredient</button>
+        
+        <!-- Preparation Method -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <span style="font-size:18px">🍳</span>
+          <span style="font-family:'Fraunces',serif;font-size:17px;font-weight:700;color:var(--ink)" data-i18n="method">Preparation Method</span>
+        </div>
+        
+        <textarea class="finput" id="r-method" rows="6" data-i18n-placeholder="method_placeholder" placeholder="Step 1: Cure duck legs overnight&#10;Step 2: Confit at 93°C for 3 hours&#10;Step 3: Crisp skin before service"></textarea>
+        
+        <!-- Reminder Frequency -->
+        <label class="flbl" data-i18n="reminder_frequency">Reminder Frequency</label>
+        <div style="display:flex;gap:9px;margin-bottom:15px;flex-wrap:wrap">
+          <button class="pribtn" onclick="setReminder(this,'daily')" data-i18n="daily">Daily</button>
+          <button class="pribtn" onclick="setReminder(this,'weekly')" data-i18n="weekly">Weekly</button>
+          <button class="pribtn" onclick="setReminder(this,'biweekly')" data-i18n="biweekly">Biweekly</button>
+          <button class="pribtn" onclick="setReminder(this,'monthly')" data-i18n="monthly">Monthly</button>
+        </div>
+        
+        <!-- Allergens Section -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <span style="font-family:'Fraunces',serif;font-size:17px;font-weight:700;color:var(--ink)" data-i18n="allergens">Allergens</span>
+        </div>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:20px">
+          <button class="pribtn" onclick="toggleAllergen(this,'dairy')">🥛 <span data-i18n="dairy">Dairy</span></button>
+          <button class="pribtn" onclick="toggleAllergen(this,'tree-nut')">🌰 <span data-i18n="tree_nut">Tree Nut</span></button>
+          <button class="pribtn" onclick="toggleAllergen(this,'soy')">🫘 <span data-i18n="soy">Soy</span></button>
+          <button class="pribtn" onclick="toggleAllergen(this,'allium')">🧅 <span data-i18n="allium">Allium</span></button>
+          <button class="pribtn" onclick="toggleAllergen(this,'gluten')">🌾 <span data-i18n="gluten">Gluten</span></button>
+          <button class="pribtn" onclick="toggleAllergen(this,'peanut')">🥜 <span data-i18n="peanut">Peanut</span></button>
+          <button class="pribtn" onclick="toggleAllergen(this,'shellfish')">🦐 <span data-i18n="shellfish">Shellfish</span></button>
+          <button class="pribtn" onclick="toggleAllergen(this,'sesame')">🌱 <span data-i18n="sesame">Sesame</span></button>
+        </div>
+        
+        <button class="mbtn p" onclick="saveManualRecipe()" data-i18n="save_recipe">Save Recipe ✓</button>
+        <button class="mbtn s" onclick="closeM('m-manual-entry')" data-i18n="cancel">Cancel</button>
+      </div>
+    </div>
+
+    <!-- IMPORT LINK FORM -->
+    <div class="overlay" id="m-import-link" onclick="bgC(event,'m-import-link')">
+      <div class="modal">
+        <div class="mhandle"></div>
+        <div class="mtitle" data-i18n="import_from_link">Import from Link</div>
+        <div class="msub" data-i18n="paste_url">Paste a recipe URL and we'll extract the details.</div>
+        
+        <label class="flbl" data-i18n="recipe_url">Recipe URL *</label>
+        <input class="finput" id="r-url" type="url" data-i18n-placeholder="url_placeholder" placeholder="https://example.com/recipe" />
+        
+        <button class="mbtn p" onclick="importRecipeFromURL()" data-i18n="import_recipe">Import Recipe 🔗</button>
+        <button class="mbtn s" onclick="closeM('m-import-link')" data-i18n="cancel">Cancel</button>
+      </div>
+    </div>
+
+    <!-- EDIT RECIPE FORM -->
+    <div class="overlay" id="m-edit-recipe" onclick="bgC(event,'m-edit-recipe')">
+      <div class="modal">
+        <div class="mhandle"></div>
+        <div class="mtitle">Edit Recipe</div>
+        <div class="msub">Update recipe details below.</div>
+        
+        <label class="flbl">Recipe Name *</label>
+        <input class="finput" id="e-name" type="text" placeholder="e.g. Duck Confit" />
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:11px">
+          <div>
+            <label class="flbl">Cook Time (HH:MM) *</label>
+            <input class="finput" style="margin:0;font-family:'JetBrains Mono',monospace;letter-spacing:1px" id="e-time" type="text" placeholder="01:30" maxlength="5" oninput="formatTimeInput(this)" />
+          </div>
+          <div>
+            <label class="flbl">Portions *</label>
+            <input class="finput" style="margin:0" id="e-portions" type="number" min="1" placeholder="4" />
+          </div>
+        </div>
+        
+        <label class="flbl">Category *</label>
+        <select class="finput" id="e-category">
+          <option value="">Select category...</option>
+          <option value="main">Main</option>
+          <option value="starter">Starter</option>
+          <option value="dessert">Dessert</option>
+          <option value="sauce">Sauce</option>
+          <option value="garnish">Garnish</option>
+        </select>
+        
+        <!-- Ingredients Section -->
+        <div style="margin-top:20px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <span style="font-size:18px">🧺</span>
+            <span style="font-family:'Fraunces',serif;font-size:17px;font-weight:700;color:var(--ink)">Ingredients</span>
+          </div>
+        </div>
+        
+        <div id="edit-ingredients-list"></div>
+        
+        <button class="mbtn s" onclick="addEditIngredientRow()" style="margin-bottom:20px">＋ Add Ingredient</button>
+        
+        <!-- Preparation Method -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <span style="font-size:18px">🍳</span>
+          <span style="font-family:'Fraunces',serif;font-size:17px;font-weight:700;color:var(--ink)">Preparation Method</span>
+        </div>
+        
+        <textarea class="finput" id="e-method" rows="6" placeholder="Step 1: ..."></textarea>
+        
+        <!-- Reminder Frequency -->
+        <label class="flbl">Reminder Frequency</label>
+        <div style="display:flex;gap:9px;margin-bottom:15px;flex-wrap:wrap" id="edit-reminder-btns">
+          <button class="pribtn" onclick="setEditReminder(this,'daily')">Daily</button>
+          <button class="pribtn" onclick="setEditReminder(this,'weekly')">Weekly</button>
+          <button class="pribtn" onclick="setEditReminder(this,'biweekly')">Biweekly</button>
+          <button class="pribtn" onclick="setEditReminder(this,'monthly')">Monthly</button>
+        </div>
+        
+        <!-- Allergens Section -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <span style="font-family:'Fraunces',serif;font-size:17px;font-weight:700;color:var(--ink)">Allergens</span>
+        </div>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:20px" id="edit-allergen-btns">
+          <button class="pribtn" onclick="toggleEditAllergen(this,'dairy')">🥛 Dairy</button>
+          <button class="pribtn" onclick="toggleEditAllergen(this,'tree-nut')">🌰 Tree Nut</button>
+          <button class="pribtn" onclick="toggleEditAllergen(this,'soy')">🫘 Soy</button>
+          <button class="pribtn" onclick="toggleEditAllergen(this,'allium')">🧅 Allium</button>
+          <button class="pribtn" onclick="toggleEditAllergen(this,'gluten')">🌾 Gluten</button>
+          <button class="pribtn" onclick="toggleEditAllergen(this,'peanut')">🥜 Peanut</button>
+          <button class="pribtn" onclick="toggleEditAllergen(this,'shellfish')">🦐 Shellfish</button>
+          <button class="pribtn" onclick="toggleEditAllergen(this,'sesame')">🌱 Sesame</button>
+        </div>
+        
+        <button class="mbtn p" onclick="saveEditedRecipe()">Save Changes ✓</button>
+        <button class="mbtn s" onclick="closeM('m-edit-recipe')">Cancel</button>
+      </div>
+    </div>
+
+    <!-- ADD PREP TASK -->
+    <div class="overlay" id="m-addprep" onclick="bgC(event,'m-addprep')">
+      <div class="modal">
+        <div class="mhandle"></div>
+        <div class="mtitle">New Prep Task</div>
+        <div class="msub">Add a prep task with ingredients.</div>
+        
+        <label class="flbl">Dish Name *</label>
+        <input class="finput" id="pt-dish" type="text" placeholder="e.g. Mirepoix Prep" />
+        
+        <!-- Ingredients Section -->
+        <div style="margin-top:18px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <span style="font-size:16px">🥕</span>
+            <span style="font-family:'Fraunces',serif;font-size:16px;font-weight:700;color:var(--ink)">Ingredients</span>
+          </div>
+        </div>
+        
+        <div id="prep-ingredients-list"></div>
+        
+        <button class="mbtn s" onclick="addPrepIngredientRow()" style="margin-bottom:18px">＋ Add Ingredient</button>
+        
+        <label class="flbl">Day of Week</label>
+        <select class="finput" id="pt-day">
+          <option value="">Select day...</option>
+          <option value="monday">Monday</option>
+          <option value="tuesday">Tuesday</option>
+          <option value="wednesday">Wednesday</option>
+          <option value="thursday">Thursday</option>
+          <option value="friday">Friday</option>
+          <option value="saturday">Saturday</option>
+          <option value="sunday">Sunday</option>
+        </select>
+        
+        <label class="flbl">Priority</label>
+        <div style="display:flex;gap:9px;margin-bottom:15px">
+          <button class="pribtn" id="pri-urgent" onclick="setPrepPri(this,'urgent')">🔴 Urgent</button>
+          <button class="pribtn on" id="pri-normal" onclick="setPrepPri(this,'normal')">⚪ Normal</button>
+          <button class="pribtn" id="pri-low" onclick="setPrepPri(this,'low')">🟢 Low</button>
+        </div>
+        
+        <button class="mbtn p" onclick="saveNewPrepTask()">Add to List ✓</button>
+        <button class="mbtn s" onclick="closeM('m-addprep')">Cancel</button>
+      </div>
+    </div>
+
+    <!-- ADD TIMER -->
+    <div class="overlay" id="m-addtimer" onclick="bgC(event,'m-addtimer')">
+      <div class="modal">
+        <div class="mhandle"></div>
+        <div class="mtitle" data-i18n="new_timer">New Timer</div>
+        <div class="msub" data-i18n="choose_preset">Choose a preset or set custom duration</div>
+        
+        <!-- Quick Presets -->
+        <div style="font-size:10.5px;font-weight:700;color:var(--s4);margin:16px 0 10px;text-transform:uppercase;letter-spacing:0.6px" data-i18n="quick_presets">⚡ Quick Presets</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px">
+          <button class="qtbtn" onclick="quickAddTimer(1)">1 <span data-i18n="min">min</span></button>
+          <button class="qtbtn" onclick="quickAddTimer(10)">10 <span data-i18n="min">min</span></button>
+          <button class="qtbtn" onclick="quickAddTimer(30)">30 <span data-i18n="min">min</span></button>
+          <button class="qtbtn" onclick="quickAddTimer(60)">1 <span data-i18n="hour">hour</span></button>
+          <button class="qtbtn" onclick="quickAddTimer(120)">2 <span data-i18n="hours">hours</span></button>
+          <button class="qtbtn" onclick="quickAddTimer(720)">12 <span data-i18n="hours">hours</span></button>
+        </div>
+        
+        <!-- Custom Timer -->
+        <div style="font-size:10.5px;font-weight:700;color:var(--s4);margin:0 0 10px;text-transform:uppercase;letter-spacing:0.6px" data-i18n="custom_timer">⏱️ Custom Timer</div>
+        <label class="flbl" data-i18n="label">Label</label>
+        <input class="finput" id="tmr-label" type="text" data-i18n-placeholder="timer_label_placeholder" placeholder="e.g. Duck Confit · Oven" />
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:11px">
+          <div>
+            <label class="flbl" data-i18n="hours">Hours</label>
+            <input class="finput" style="margin:0" id="tmr-h" type="number" min="0" max="23" placeholder="0" />
+          </div>
+          <div>
+            <label class="flbl" data-i18n="minutes">Minutes</label>
+            <input class="finput" style="margin:0" id="tmr-m" type="number" min="0" max="59" placeholder="0" />
+          </div>
+          <div>
+            <label class="flbl" data-i18n="seconds">Seconds</label>
+            <input class="finput" style="margin:0" id="tmr-s" type="number" min="0" max="59" placeholder="0" />
+          </div>
+        </div>
+        <button class="mbtn p" onclick="saveTimer()" data-i18n="start_custom_timer">Start Custom Timer ⏱</button>
+        <button class="mbtn s" onclick="closeM('m-addtimer')" data-i18n="cancel">Cancel</button>
+      </div>
+    </div>
+
+    <!-- EDIT PROFILE -->
+    <div class="overlay" id="m-edit-profile" onclick="bgC(event,'m-edit-profile')">
+      <div class="modal">
+        <div class="mhandle"></div>
+        <div class="mtitle" data-i18n="edit_profile">Edit Profile</div>
+        <label class="flbl" data-i18n="your_name">Your Name *</label>
+        <input class="finput" id="ep-name" type="text" data-i18n-placeholder="name_placeholder" placeholder="Chef Alex" />
+        <label class="flbl" data-i18n="role">Role</label>
+        <input class="finput" id="ep-role" type="text" data-i18n-placeholder="role_placeholder" placeholder="Sauté Cook, Sous Chef…" />
+        <label class="flbl" data-i18n="restaurant">Restaurant / Kitchen</label>
+        <input class="finput" id="ep-kitchen" type="text" data-i18n-placeholder="restaurant_placeholder" placeholder="The Grand Kitchen" />
+        <label class="flbl" data-i18n="station">Station</label>
+        <input class="finput" id="ep-station" type="text" data-i18n-placeholder="station_placeholder" placeholder="Sauté Station" />
+        <label class="flbl" data-i18n="service_time_label">Service Time</label>
+        <input class="finput" id="ep-service" type="time" value="18:00" />
+        <button class="mbtn p" onclick="saveProfile()" data-i18n="save_profile">Save Profile ✓</button>
+        <button class="mbtn s" onclick="closeM('m-edit-profile')" data-i18n="cancel">Cancel</button>
+      </div>
+    </div>
+
+    <!-- LANGUAGE SELECTION -->
+    <div class="overlay" id="m-language" onclick="bgC(event,'m-language')">
+      <div class="modal">
+        <div class="mhandle"></div>
+        <div class="mtitle" data-i18n="change_language">Change Language</div>
+        <div class="msub">Select your preferred language</div>
+        
+        <div style="display:grid;gap:12px;margin:20px 0">
+          <button class="lang-btn" id="lang-btn-en" onclick="changeLanguageFromProfile('en')">
+            <div class="lang-flag">🇺🇸</div>
+            <div class="lang-name">English</div>
+            <div class="lang-check" id="profile-check-en">✓</div>
+          </button>
+          <button class="lang-btn" id="lang-btn-es" onclick="changeLanguageFromProfile('es')">
+            <div class="lang-flag">🇪🇸</div>
+            <div class="lang-name">Español</div>
+            <div class="lang-check" id="profile-check-es"></div>
+          </button>
+        </div>
+        
+        <button class="mbtn s" onclick="closeM('m-language')" data-i18n="close">Close</button>
+      </div>
+    </div>
+
+    <!-- CONVERSION CALCULATOR -->
+    <div class="overlay" id="m-calc" onclick="bgC(event,'m-calc')">
+      <div class="modal" style="max-height:92%">
+        <div class="mhandle"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+          <div class="mtitle" style="margin:0" data-i18n="conversion_calc">Conversion Calc</div>
+          <button class="btn-ico" onclick="closeM('m-calc')">✕</button>
+        </div>
+        <div class="msub" data-i18n="kitchen_converter">Kitchen unit converter.</div>
+        <div class="chips" style="padding:0 0 16px">
+          <div class="chip on" onclick="setCalcTab(this,'weight')" data-i18n="weight">⚖️ Weight</div>
+          <div class="chip" onclick="setCalcTab(this,'volume')" data-i18n="volume">🥛 Volume</div>
+          <div class="chip" onclick="setCalcTab(this,'temp')" data-i18n="temp">🌡 Temp</div>
+          <div class="chip" onclick="setCalcTab(this,'portion')" data-i18n="portion_calc">🍽 Portion</div>
+        </div>
+        <!-- Weight -->
+        <div id="calc-weight" class="calc-panel on">
+          <div class="calc-io">
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:9px;align-items:center;margin-bottom:11px">
+              <div><label class="flbl" data-i18n="amount">Amount</label><input class="finput" style="margin:0;font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace" type="number" id="w-in" placeholder="0" oninput="cW()"></div>
+              <div style="font-size:22px;color:var(--s3);padding-top:20px">→</div>
+              <div><label class="flbl" data-i18n="result">Result</label><div class="calc-result" id="w-out">—</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+              <div><label class="flbl" data-i18n="from">From</label><select class="finput" style="margin:0" id="w-from" onchange="cW()"><option>g</option><option>kg</option><option>oz</option><option>lb</option></select></div>
+              <div><label class="flbl" data-i18n="to">To</label><select class="finput" style="margin:0" id="w-to" onchange="cW()"><option>oz</option><option>lb</option><option>g</option><option>kg</option></select></div>
+            </div>
+          </div>
+          <div class="calc-ref-lbl" data-i18n="quick_reference">Quick Reference</div>
+          <div class="calc-grid">
+            <div class="cref"><span class="cref-f">1 kg</span><span class="cref-a">→</span><span class="cref-t">2.2 lb</span></div>
+            <div class="cref"><span class="cref-f">1 oz</span><span class="cref-a">→</span><span class="cref-t">28.3 g</span></div>
+            <div class="cref"><span class="cref-f">1 lb</span><span class="cref-a">→</span><span class="cref-t">453.6 g</span></div>
+            <div class="cref"><span class="cref-f">100 g</span><span class="cref-a">→</span><span class="cref-t">3.5 oz</span></div>
+          </div>
+        </div>
+        <!-- Volume -->
+        <div id="calc-volume" class="calc-panel">
+          <div class="calc-io">
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:9px;align-items:center;margin-bottom:11px">
+              <div><label class="flbl" data-i18n="amount">Amount</label><input class="finput" style="margin:0;font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace" type="number" id="v-in" placeholder="0" oninput="cV()"></div>
+              <div style="font-size:22px;color:var(--s3);padding-top:20px">→</div>
+              <div><label class="flbl" data-i18n="result">Result</label><div class="calc-result" id="v-out">—</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+              <div><label class="flbl" data-i18n="from">From</label><select class="finput" style="margin:0" id="v-from" onchange="cV()"><option>ml</option><option>L</option><option>fl oz</option><option>cup</option><option>tbsp</option><option>tsp</option></select></div>
+              <div><label class="flbl" data-i18n="to">To</label><select class="finput" style="margin:0" id="v-to" onchange="cV()"><option>fl oz</option><option>cup</option><option>ml</option><option>L</option><option>tbsp</option><option>tsp</option></select></div>
+            </div>
+          </div>
+          <div class="calc-ref-lbl" data-i18n="quick_reference">Quick Reference</div>
+          <div class="calc-grid">
+            <div class="cref"><span class="cref-f">1 cup</span><span class="cref-a">→</span><span class="cref-t">237 ml</span></div>
+            <div class="cref"><span class="cref-f">1 L</span><span class="cref-a">→</span><span class="cref-t">33.8 fl oz</span></div>
+            <div class="cref"><span class="cref-f">1 tbsp</span><span class="cref-a">→</span><span class="cref-t">15 ml</span></div>
+            <div class="cref"><span class="cref-f">1 tsp</span><span class="cref-a">→</span><span class="cref-t">5 ml</span></div>
+          </div>
+        </div>
+        <!-- Temp -->
+        <div id="calc-temp" class="calc-panel">
+          <div class="calc-io">
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:9px;align-items:center;margin-bottom:11px">
+              <div><label class="flbl" data-i18n="temperature">Temperature</label><input class="finput" style="margin:0;font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace" type="number" id="t-in" placeholder="0" oninput="cT()"></div>
+              <div style="font-size:22px;color:var(--s3);padding-top:20px">→</div>
+              <div><label class="flbl" data-i18n="result">Result</label><div class="calc-result" id="t-out">—</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+              <div><label class="flbl" data-i18n="from">From</label><select class="finput" style="margin:0" id="t-from" onchange="cT()"><option>°F</option><option>°C</option></select></div>
+              <div><label class="flbl" data-i18n="to">To</label><select class="finput" style="margin:0" id="t-to" onchange="cT()"><option>°C</option><option>°F</option></select></div>
+            </div>
+          </div>
+          <div class="calc-ref-lbl" data-i18n="kitchen_temps">Kitchen Temps</div>
+          <div class="calc-grid">
+            <div class="cref"><span class="cref-f">165°F</span><span class="cref-a">→</span><span class="cref-t">74°C · <span data-i18n="poultry">Poultry</span></span></div>
+            <div class="cref"><span class="cref-f">145°F</span><span class="cref-a">→</span><span class="cref-t">63°C · <span data-i18n="fish">Fish</span></span></div>
+            <div class="cref"><span class="cref-f">135°F</span><span class="cref-a">→</span><span class="cref-t">57°C · <span data-i18n="beef_med">Beef Med</span></span></div>
+            <div class="cref"><span class="cref-f">350°F</span><span class="cref-a">→</span><span class="cref-t">177°C · <span data-i18n="oven">Oven</span></span></div>
+            <div class="cref"><span class="cref-f">375°F</span><span class="cref-a">→</span><span class="cref-t">190°C · <span data-i18n="roast">Roast</span></span></div>
+            <div class="cref"><span class="cref-f">400°F</span><span class="cref-a">→</span><span class="cref-t">204°C · <span data-i18n="high">High</span></span></div>
+          </div>
+        </div>
+        <!-- Portion -->
+        <div id="calc-portion" class="calc-panel">
+          <div class="calc-io">
+            <label class="flbl" data-i18n="orig_recipe">Original Recipe Makes</label>
+            <input class="finput" type="number" id="p-orig" placeholder="e.g. 6" oninput="cP()" />
+            <label class="flbl" data-i18n="scale_to">Scale to</label>
+            <input class="finput" style="margin-bottom:0" type="number" id="p-new" placeholder="e.g. 24" oninput="cP()" />
+          </div>
+          <div class="calc-factor" style="margin-top:12px">
+            <div style="font-size:10px;font-weight:700;color:var(--s3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:5px" data-i18n="scale_factor">Scale Factor</div>
+            <div class="calc-factor-n" id="p-out">—</div>
+            <div class="calc-factor-l" id="p-hint" data-i18n="multiply_all">Multiply all ingredients by this number</div>
+          </div>
+          <div class="calc-ref-lbl" data-i18n="common_scales">Common Scales</div>
+          <div class="calc-grid">
+            <div class="cref"><span class="cref-f">×2</span><span class="cref-t" style="margin-left:8px" data-i18n="double_batch">Double batch</span></div>
+            <div class="cref"><span class="cref-f">×0.5</span><span class="cref-t" style="margin-left:8px" data-i18n="half_batch">Half batch</span></div>
+            <div class="cref"><span class="cref-f">×4</span><span class="cref-t" style="margin-left:8px" data-i18n="banquet_prep">Banquet prep</span></div>
+            <div class="cref"><span class="cref-f">×0.33</span><span class="cref-t" style="margin-left:8px" data-i18n="tasting_menu">Tasting menu</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EDIT PLATING GUIDE -->
+    <div class="overlay" id="m-edit-plating" onclick="bgC(event,'m-edit-plating')">
+      <div class="modal" style="max-height:92%">
+        <div class="mhandle"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+          <div class="mtitle" style="margin:0">Edit Plating Guide</div>
+          <button class="btn-ico" onclick="closeM('m-edit-plating')">✕</button>
+        </div>
+        <div class="msub">Add photo and instructions for plating</div>
+        
+        <div style="margin-top:20px">
+          <label class="flbl">Plate Reference Photo</label>
+          <div style="display:flex;gap:8px;margin-bottom:16px">
+            <input type="file" id="plating-photo-input" accept="image/*" style="display:none" onchange="handlePlatingPhoto(event)">
+            <button class="mbtn s" onclick="document.getElementById('plating-photo-input').click()">📸 Choose Photo</button>
+            <button class="mbtn s" onclick="removePlatingPhoto()">🗑 Remove</button>
+          </div>
+          <div id="plating-photo-preview" style="width:100%;aspect-ratio:4/3;background:var(--s1);border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:16px">
+            <div style="text-align:center;color:var(--s3);font-size:13px">
+              <div style="font-size:48px;margin-bottom:8px;opacity:0.5">📸</div>
+              <div>No photo selected</div>
+            </div>
+          </div>
+        </div>
+
+        <label class="flbl">Plating Instructions (One per line)</label>
+        <textarea 
+          class="finput" 
+          id="plating-instructions" 
+          placeholder="1. Warm plate in pass (60°C) · 30 sec
+2. Swoosh jus across plate from 7 → 1 o'clock
+3. Quenelle celeriac purée at 9 o'clock · 60g"
+          style="min-height:180px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6"
+        ></textarea>
+
+        <label class="flbl">Chef's Notes</label>
+        <textarea 
+          class="finput" 
+          id="plating-notes" 
+          placeholder="Add any important notes about timing, technique, or presentation..."
+          style="min-height:100px"
+        ></textarea>
+
+        <button class="mbtn p" onclick="savePlatingGuide()">✅ Save Plating Guide</button>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
