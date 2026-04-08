@@ -1229,14 +1229,35 @@ function openRecipeDetail(id) {
   // Set hero - use photo as background if available
   const hero = document.getElementById("detail-hero");
   if (hero) {
-    if (r.photo) {
-      hero.style.background = `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), url(${r.photo})`;
+    // Check for photos array first, then fallback to single photo
+    let photoToUse = null;
+    let allPhotos = [];
+    
+    if (r.photos && Array.isArray(r.photos) && r.photos.length > 0) {
+      photoToUse = r.photos[0].data;
+      allPhotos = r.photos.map(p => p.data);
+    } else if (r.photo) {
+      photoToUse = r.photo;
+      allPhotos = [r.photo];
+    }
+    
+    if (photoToUse) {
+      hero.style.background = `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), url(${photoToUse})`;
       hero.style.backgroundSize = "cover";
       hero.style.backgroundPosition = "center";
+      hero.style.cursor = "pointer";
+      hero.onclick = (e) => {
+        // Only open photo viewer if not clicking on buttons
+        if (!e.target.closest('button')) {
+          openPhotoViewer(photoToUse, allPhotos);
+        }
+      };
     } else {
       hero.style.background = "linear-gradient(135deg, #111, #2d5a12)";
       hero.style.backgroundSize = "";
       hero.style.backgroundPosition = "";
+      hero.style.cursor = "default";
+      hero.onclick = null;
     }
   }
 
@@ -1283,6 +1304,14 @@ function openRecipeDetail(id) {
   yBasePortions = r.portions || 1;
   yCurrent = r.portions || 1;
   currentIngredients = r.ingredients || [];
+  
+  // Initialize estimated yield display
+  updateEstimatedYield(r);
+  
+  // Initialize yield display
+  document.getElementById("yv").textContent = yCurrent;
+  document.getElementById("ym").textContent = yCurrent;
+  
   renderIngredients();
 
   // Method
@@ -1358,6 +1387,14 @@ function adjY(d) {
   yCurrent = Math.max(1, yCurrent + d);
   document.getElementById("yv").textContent = yCurrent;
   document.getElementById("ym").textContent = yCurrent;
+  
+  // Update estimated yield based on current recipe
+  const recipes = DB.getList("recipes");
+  const r = recipes.find((recipe) => recipe.id === activeRecipeId);
+  if (r) {
+    updateEstimatedYield(r);
+  }
+  
   renderIngredients();
 }
 
@@ -1374,20 +1411,57 @@ function renderIngredients() {
 
   container.innerHTML = currentIngredients
     .map((line) => {
-      // First scale by portion ratio
-      const scaled = line.replace(/(\d+\.?\d*)/g, (match) => {
-        const n = parseFloat(match) * ratio;
-        return Number.isInteger(n) ? n : parseFloat(n.toFixed(1));
-      });
+      // Parse ingredient: "quantity unit name"
+      const trimmed = line.trim();
+      const parts = trimmed.split(' ');
+      
+      let quantity = '';
+      let unit = '';
+      let name = '';
+      
+      // Check if first part is a number
+      if (parts.length > 0 && !isNaN(parseFloat(parts[0]))) {
+        const originalQty = parseFloat(parts[0]);
+        const scaledQty = originalQty * ratio;
+        quantity = Number.isInteger(scaledQty) ? scaledQty.toString() : scaledQty.toFixed(1);
+        
+        // Second part is likely the unit
+        if (parts.length > 1) {
+          unit = parts[1];
+          // Rest is the name
+          name = parts.slice(2).join(' ');
+        }
+      } else {
+        // No quantity, whole thing is name
+        name = trimmed;
+      }
 
-      // Then convert units if needed
-      const converted = convertIngredient(scaled, 1);
-
-      return `
-      <div class="ing">
-        <div class="ing-name">${esc(converted)}</div>
-      </div>
-    `;
+      // Format the display
+      if (quantity && unit && name) {
+        return `
+          <div class="ing">
+            <div style="display:flex;gap:8px;align-items:baseline">
+              <div class="ing-qty">${esc(quantity)} ${esc(unit)}</div>
+              <div class="ing-name">${esc(name)}</div>
+            </div>
+          </div>
+        `;
+      } else if (quantity && name) {
+        return `
+          <div class="ing">
+            <div style="display:flex;gap:8px;align-items:baseline">
+              <div class="ing-qty">${esc(quantity)}</div>
+              <div class="ing-name">${esc(name)}</div>
+            </div>
+          </div>
+        `;
+      } else {
+        return `
+          <div class="ing">
+            <div class="ing-name">${esc(trimmed)}</div>
+          </div>
+        `;
+      }
     })
     .join("");
 }
@@ -1537,16 +1611,25 @@ function togglePrep(id) {
   const list = DB.getList("prep");
   const item = list.find((p) => p.id === id);
   if (!item) return;
+  
+  const wasDone = item.done;
   item.done = !item.done;
 
-  if (item.done) {
+  if (item.done && !wasDone) {
+    // Only increment stats when marking as done
     const stats = DB.get("stats") || {};
     stats.prepsDone = (stats.prepsDone || 0) + 1;
+    DB.set("stats", stats);
+  } else if (!item.done && wasDone) {
+    // Decrement stats when undoing
+    const stats = DB.get("stats") || {};
+    stats.prepsDone = Math.max(0, (stats.prepsDone || 0) - 1);
     DB.set("stats", stats);
   }
 
   DB.set("prep", list);
   renderPrepList();
+  updateHomePrep(); // Update home screen progress
 }
 
 function togglePrepIngredient(prepId, ingredientIndex) {
@@ -1559,25 +1642,37 @@ function togglePrepIngredient(prepId, ingredientIndex) {
     item.ingredientsDone = [];
   }
 
+  const wasAllDone = item.done;
+  
   // Toggle this ingredient
   item.ingredientsDone[ingredientIndex] =
     !item.ingredientsDone[ingredientIndex];
 
-  // Check if all ingredients are done
+  // Check if all ingredients are done or not
   if (item.ingredients) {
     const allDone = item.ingredients.every(
       (_, idx) => item.ingredientsDone[idx],
     );
+    
+    // Update task done status
     if (allDone && !item.done) {
+      // All ingredients now complete - mark task as done
       item.done = true;
       const stats = DB.get("stats") || {};
       stats.prepsDone = (stats.prepsDone || 0) + 1;
+      DB.set("stats", stats);
+    } else if (!allDone && item.done) {
+      // At least one ingredient incomplete - mark task as not done
+      item.done = false;
+      const stats = DB.get("stats") || {};
+      stats.prepsDone = Math.max(0, (stats.prepsDone || 0) - 1);
       DB.set("stats", stats);
     }
   }
 
   DB.set("prep", list);
   renderPrepList();
+  updateHomePrep(); // Update home screen progress
 }
 
 function filterPrepByDay(el, day) {
@@ -1872,7 +1967,7 @@ function showStopAlarmButton() {
       border-radius: 50px;
       font-size: 16px;
       font-weight: 700;
-      font-family: "DM Sans", sans-serif;
+      font-family: "Roboto", sans-serif;
       box-shadow: 0 8px 24px rgba(212,48,48,0.4);
       cursor: pointer;
       z-index: 999;
@@ -2449,90 +2544,175 @@ function formatTimeDisplay(timeStr) {
 }
 
 // Camera for recipe photo
-function openCameraForRecipe() {
-  // Create hidden file input for camera/photo selection
+// Multiple photos support for recipes
+let recipePhotos = []; // Store multiple photos
+
+function openMultiplePhotosForRecipe() {
+  // Create hidden file input for multiple photo selection
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "image/*";
-  input.capture = "environment"; // Use camera if available
+  input.multiple = true; // Allow multiple files
+  // Remove capture attribute to allow gallery access
 
   input.onchange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
 
-    // Validate file type
-    if (!file.type.startsWith("image/")) {
-      toast("⚠️ Please select an image file");
-      return;
-    }
+    files.forEach(file => {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast("⚠️ Please select image files only");
+        return;
+      }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast("⚠️ Image too large. Max 5MB");
-      return;
-    }
+      // Validate file size (max 5MB per file)
+      if (file.size > 5 * 1024 * 1024) {
+        toast(`⚠️ ${file.name} is too large. Max 5MB per image`);
+        return;
+      }
 
-    // Read and store the image
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      // Store image data in localStorage temporarily
-      DB.set("temp_recipe_photo", {
-        data: event.target.result,
-        name: file.name,
-        timestamp: Date.now(),
-      });
+      // Read and store the image
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        recipePhotos.push({
+          data: event.target.result,
+          name: file.name,
+          timestamp: Date.now(),
+        });
 
-      toast("✅ Photo added! Save recipe to keep it");
+        // Update preview
+        showMultipleRecipePhotosPreview();
+        toast(`✅ ${recipePhotos.length} photo(s) added!`);
+      };
 
-      // Show preview if there's a preview container
-      showRecipePhotoPreview(event.target.result);
-    };
+      reader.onerror = () => {
+        toast(`❌ Failed to read ${file.name}`);
+      };
 
-    reader.onerror = () => {
-      toast("❌ Failed to read image");
-    };
-
-    reader.readAsDataURL(file);
+      reader.readAsDataURL(file);
+    });
   };
 
   // Trigger file input
   input.click();
 }
 
-function showRecipePhotoPreview(imageData) {
-  // Check if we're in the manual entry modal
-  const modalTitle = document.querySelector("#m-manual-entry .mtitle");
-  if (!modalTitle) return;
-
-  // Remove existing preview if any
-  const existingPreview = document.getElementById("recipe-photo-preview");
-  if (existingPreview) existingPreview.remove();
-
-  // Create preview element
-  const preview = document.createElement("div");
-  preview.id = "recipe-photo-preview";
-  preview.style.cssText = "margin:10px 0 15px;position:relative";
-  preview.innerHTML = `
-    <div style="position:relative;border-radius:16px;overflow:hidden;box-shadow:var(--shadow-md)">
-      <img src="${imageData}" style="width:100%;height:auto;max-height:200px;object-fit:cover;display:block" />
-      <button onclick="removeRecipePhoto()" style="position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.7);color:#fff;border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
-    </div>
-    <div style="font-size:11px;color:var(--s3);margin-top:6px;text-align:center">📸 Photo will be saved with recipe</div>
-  `;
-
-  // Insert after the subtitle
-  const msub = document.querySelector("#m-manual-entry .msub");
-  if (msub) {
-    msub.after(preview);
+function showMultipleRecipePhotosPreview() {
+  const container = document.getElementById("recipe-photos-container");
+  const grid = document.getElementById("recipe-photos-grid");
+  
+  if (!container || !grid) return;
+  
+  if (recipePhotos.length === 0) {
+    container.style.display = "none";
+    return;
   }
+  
+  container.style.display = "block";
+  grid.innerHTML = "";
+  
+  recipePhotos.forEach((photo, index) => {
+    const photoCard = document.createElement("div");
+    photoCard.style.cssText = "position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm)";
+    photoCard.innerHTML = `
+      <img src="${photo.data}" style="width:100%;height:100%;object-fit:cover;display:block" />
+      <button onclick="removeRecipePhotoByIndex(${index})" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.7);color:#fff;border:none;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    `;
+    grid.appendChild(photoCard);
+  });
 }
 
-function removeRecipePhoto() {
-  localStorage.removeItem("ff_temp_recipe_photo");
-  const preview = document.getElementById("recipe-photo-preview");
-  if (preview) preview.remove();
+function removeRecipePhotoByIndex(index) {
+  recipePhotos.splice(index, 1);
+  showMultipleRecipePhotosPreview();
   toast("🗑 Photo removed");
 }
+
+// Edit recipe - multiple photos
+let editRecipePhotos = [];
+
+function openMultiplePhotosForEditRecipe() {
+  // Create hidden file input for multiple photo selection
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.multiple = true;
+
+  input.onchange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    files.forEach(file => {
+      if (!file.type.startsWith("image/")) {
+        toast("⚠️ Please select image files only");
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast(`⚠️ ${file.name} is too large. Max 5MB per image`);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        editRecipePhotos.push({
+          data: event.target.result,
+          name: file.name,
+          timestamp: Date.now(),
+        });
+
+        showMultipleEditRecipePhotosPreview();
+        toast(`✅ ${editRecipePhotos.length} photo(s) added!`);
+      };
+
+      reader.onerror = () => {
+        toast(`❌ Failed to read ${file.name}`);
+      };
+
+      reader.readAsDataURL(file);
+    });
+  };
+
+  input.click();
+}
+
+function showMultipleEditRecipePhotosPreview() {
+  const container = document.getElementById("edit-recipe-photos-container");
+  const grid = document.getElementById("edit-recipe-photos-grid");
+  
+  if (!container || !grid) return;
+  
+  if (editRecipePhotos.length === 0) {
+    container.style.display = "none";
+    return;
+  }
+  
+  container.style.display = "block";
+  grid.innerHTML = "";
+  
+  editRecipePhotos.forEach((photo, index) => {
+    const photoCard = document.createElement("div");
+    photoCard.style.cssText = "position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm)";
+    photoCard.innerHTML = `
+      <img src="${photo.data}" style="width:100%;height:100%;object-fit:cover;display:block" />
+      <button onclick="removeEditRecipePhotoByIndex(${index})" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.7);color:#fff;border:none;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    `;
+    grid.appendChild(photoCard);
+  });
+}
+
+function removeEditRecipePhotoByIndex(index) {
+  editRecipePhotos.splice(index, 1);
+  showMultipleEditRecipePhotosPreview();
+  toast("🗑 Photo removed");
+}
+
+// Legacy function for backward compatibility
+function openCameraForRecipe() {
+  openMultiplePhotosForRecipe();
+}
+
 
 // Add ingredient row with quantity and unit
 function addIngredientRow() {
@@ -2710,6 +2890,18 @@ function saveManualRecipe() {
     createdAt: Date.now(),
   };
 
+  // Add multiple photos if any were added
+  if (recipePhotos.length > 0) {
+    recipe.photos = recipePhotos.map(p => ({
+      data: p.data,
+      name: p.name,
+      timestamp: p.timestamp
+    }));
+    // Keep first photo as main photo for backward compatibility
+    recipe.photo = recipePhotos[0].data;
+    recipe.photoName = recipePhotos[0].name;
+  }
+
   const list = DB.getList("recipes");
   list.push(recipe);
   DB.set("recipes", list);
@@ -2726,9 +2918,11 @@ function saveManualRecipe() {
   document.getElementById("r-method").value = "";
   document.getElementById("ingredients-list").innerHTML = "";
 
-  // Reset selections
+  // Reset selections and photos
   selectedAllergens = [];
   selectedReminder = null;
+  recipePhotos = [];
+  document.getElementById("recipe-photos-container").style.display = "none";
   document
     .querySelectorAll("#m-manual-entry .pribtn.on")
     .forEach((b) => b.classList.remove("on"));
@@ -3538,6 +3732,20 @@ function editCurrentRecipe() {
   document.getElementById("e-portions").value = recipe.portions || "";
   document.getElementById("e-method").value = (recipe.method || []).join("\n");
 
+  // Load existing photos
+  editRecipePhotos = [];
+  if (recipe.photos && Array.isArray(recipe.photos)) {
+    editRecipePhotos = [...recipe.photos];
+  } else if (recipe.photo) {
+    // Backward compatibility: convert single photo to array
+    editRecipePhotos = [{
+      data: recipe.photo,
+      name: recipe.photoName || 'photo.jpg',
+      timestamp: recipe.createdAt || Date.now()
+    }];
+  }
+  showMultipleEditRecipePhotosPreview();
+
   // Reset and populate allergens
   editSelectedAllergens = [...(recipe.allergens || [])];
   document.querySelectorAll("#edit-allergen-btns .pribtn").forEach((btn) => {
@@ -3734,8 +3942,28 @@ function saveEditedRecipe() {
     reminder: editSelectedReminder,
   };
 
+  // Update photos if changed
+  if (editRecipePhotos.length > 0) {
+    recipes[idx].photos = editRecipePhotos.map(p => ({
+      data: p.data,
+      name: p.name,
+      timestamp: p.timestamp
+    }));
+    // Keep first photo as main photo for backward compatibility
+    recipes[idx].photo = editRecipePhotos[0].data;
+    recipes[idx].photoName = editRecipePhotos[0].name;
+  } else {
+    // If all photos removed, clear photo fields
+    delete recipes[idx].photos;
+    delete recipes[idx].photo;
+    delete recipes[idx].photoName;
+  }
+
   DB.set("recipes", recipes);
 
+  // Reset photo array
+  editRecipePhotos = [];
+  
   closeM("m-edit-recipe");
   toast("✅ Recipe updated!");
 
@@ -3933,3 +4161,1016 @@ async function getRecipeFromURL(url) {
 }
 
 console.log("✅ CORS proxy fix loaded - link import should work now!");
+
+// ─────────────────────────────────────────────
+//  SHARE VIA ENCODED URL SYSTEM
+// ─────────────────────────────────────────────
+
+let _shareLink = "";
+let _pendingImport = null;
+
+// ── Encode / Decode ──────────────────────────
+
+function encodeSharePayload(type, data) {
+  const payload = { v: 1, type, data, ts: Date.now() };
+  try {
+    const json = JSON.stringify(payload);
+    // Use btoa with URI encoding to handle unicode safely
+    const encoded = btoa(unescape(encodeURIComponent(json)));
+    return encoded;
+  } catch (e) {
+    console.error("Share encode error:", e);
+    return null;
+  }
+}
+
+function decodeSharePayload(encoded) {
+  try {
+    const json = decodeURIComponent(escape(atob(encoded)));
+    return JSON.parse(json);
+  } catch (e) {
+    console.error("Share decode error:", e);
+    return null;
+  }
+}
+
+function buildShareURL(encoded) {
+  const base = window.location.href.split("?")[0].split("#")[0];
+  return `${base}?import=${encoded}`;
+}
+
+// ── Share a Recipe ───────────────────────────
+
+function shareCurrentRecipe() {
+  const recipes = DB.getList("recipes");
+  const r = recipes.find((r) => r.id === activeRecipeId);
+  if (!r) return;
+
+  const encoded = encodeSharePayload("recipe", r);
+  if (!encoded) { toast("⚠️ Failed to generate share link"); return; }
+
+  _shareLink = buildShareURL(encoded);
+
+  // Track what's being shared for PDF export
+  currentShareType = 'recipe';
+  currentShareId = activeRecipeId;
+
+  document.getElementById("share-modal-title").textContent = "Share Recipe";
+  document.getElementById("share-modal-sub").textContent =
+    `Share "${r.name}" — anyone with this link can import it.`;
+
+  renderShareModal();
+  showM("m-share");
+}
+
+// ── Share Prep List ──────────────────────────
+
+function sharePrepList() {
+  const tasks = DB.getList("prep");
+  if (tasks.length === 0) {
+    toast("⚠️ No prep tasks to share");
+    return;
+  }
+
+  // Share currently visible/filtered tasks
+  const encoded = encodeSharePayload("prep", tasks);
+  if (!encoded) { toast("⚠️ Failed to generate share link"); return; }
+
+  _shareLink = buildShareURL(encoded);
+
+  // Track what's being shared for PDF export
+  currentShareType = 'prep';
+  currentShareId = null;
+
+  document.getElementById("share-modal-title").textContent = "Share Prep List";
+  document.getElementById("share-modal-sub").textContent =
+    `Sharing ${tasks.length} prep task${tasks.length !== 1 ? "s" : ""} — recipient can import into their list.`;
+
+  renderShareModal();
+  showM("m-share");
+}
+
+// ── Render modal (link + QR) ─────────────────
+
+function renderShareModal() {
+  // Show truncated link
+  const linkEl = document.getElementById("share-link-text");
+  if (linkEl) {
+    linkEl.textContent = _shareLink;
+  }
+
+  // Generate QR code using QR Server API
+  const qrContainer = document.getElementById("share-qr");
+  if (qrContainer && _shareLink) {
+    try {
+      const encodedURL = encodeURIComponent(_shareLink);
+      const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodedURL}`;
+      
+      qrContainer.innerHTML = `<img src="${qrSrc}" style="width:180px;height:180px;border-radius:12px;display:block" alt="QR Code" onerror="this.parentElement.innerHTML='<div style=\\'padding:20px;text-align:center;color:var(--s3);font-size:12px\\'>QR code unavailable</div>'" />`;
+    } catch (error) {
+      console.error('QR generation error:', error);
+      qrContainer.innerHTML = '<div style="padding:20px;text-align:center;color:var(--s3);font-size:12px">QR code unavailable</div>';
+    }
+  }
+}
+
+// ── Copy link ────────────────────────────────
+
+function copyShareLink() {
+  if (!_shareLink) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(_shareLink).then(() => {
+      toast("✅ Link copied to clipboard!");
+    }).catch(() => fallbackCopy(_shareLink));
+  } else {
+    fallbackCopy(_shareLink);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand("copy");
+    toast("✅ Link copied!");
+  } catch (e) {
+    toast("⚠️ Copy failed — please copy manually");
+  }
+  document.body.removeChild(ta);
+}
+
+// ── Share via apps ───────────────────────────
+
+function shareViaWhatsApp() {
+  if (!_shareLink) return;
+  const msg = encodeURIComponent(`Here's a Flavor Folio share link: ${_shareLink}`);
+  window.open(`https://wa.me/?text=${msg}`, "_blank");
+}
+
+function shareViaNative() {
+  if (!_shareLink) return;
+  if (navigator.share) {
+    navigator.share({
+      title: "Flavor Folio",
+      text: "Open this link to import into Flavor Folio",
+      url: _shareLink,
+    }).catch(() => {});
+  } else {
+    // Fallback: copy link
+    copyShareLink();
+  }
+}
+
+// ── On page load: check for import in URL ────
+
+function checkForImportOnLoad() {
+  const params = new URLSearchParams(window.location.search);
+  const importParam = params.get("import");
+  if (!importParam) return;
+
+  // Clean the URL immediately so it doesn't re-trigger on refresh
+  const cleanURL = window.location.href.split("?")[0];
+  window.history.replaceState({}, document.title, cleanURL);
+
+  const payload = decodeSharePayload(importParam);
+  if (!payload || !payload.type || !payload.data) {
+    toast("⚠️ Invalid share link");
+    return;
+  }
+
+  _pendingImport = payload;
+  showImportConfirm(payload);
+}
+
+// ── Show import confirmation ─────────────────
+
+function showImportConfirm(payload) {
+  let title = "";
+  let sub = "";
+  let previewHTML = "";
+
+  if (payload.type === "recipe") {
+    const r = payload.data;
+    title = "Import Recipe?";
+    sub = "This shared recipe will be added to your collection.";
+    previewHTML = `
+      <div style="display:flex;align-items:center;gap:13px">
+        <div style="font-size:40px;width:56px;height:56px;background:var(--gl);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${esc(r.emoji || "🍽")}</div>
+        <div>
+          <div style="font-family:'Roboto Slab',serif;font-size:17px;font-weight:700;color:var(--ink)">${esc(r.name || "Recipe")}</div>
+          <div style="font-size:12px;color:var(--s3);margin-top:4px">${esc(r.category || "")} · ${r.portions || 1} portions · ${esc(r.time || "")}</div>
+          ${r.allergens && r.allergens.length ? `<div style="font-size:11px;color:var(--red);margin-top:4px">⚠ ${r.allergens.join(", ")}</div>` : ""}
+        </div>
+      </div>
+      <div style="margin-top:13px;font-size:12px;color:var(--s4);line-height:1.6">
+        ${r.ingredients ? `<strong>${r.ingredients.length} ingredients</strong>` : ""}
+        ${r.method ? ` · <strong>${r.method.length} method steps</strong>` : ""}
+      </div>`;
+  } else if (payload.type === "prep") {
+    const tasks = payload.data;
+    title = "Import Prep List?";
+    sub = "These tasks will be added to your prep list.";
+    const urgent = tasks.filter(t => t.priority === "urgent").length;
+    previewHTML = `
+      <div style="font-family:'Roboto Slab',serif;font-size:22px;font-weight:700;color:var(--ink);margin-bottom:6px">${tasks.length} Tasks</div>
+      ${urgent > 0 ? `<div style="font-size:12px;color:var(--red);font-weight:600;margin-bottom:10px">${urgent} urgent</div>` : ""}
+      <div style="display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto">
+        ${tasks.slice(0, 6).map(t => `
+          <div style="display:flex;align-items:center;gap:9px;padding:8px 10px;background:var(--w);border-radius:10px">
+            <div style="width:8px;height:8px;border-radius:50%;background:${t.priority === "urgent" ? "var(--red)" : t.priority === "low" ? "var(--gd)" : "var(--s3)"};flex-shrink:0"></div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink)">${esc(t.name || "Task")}</div>
+          </div>`).join("")}
+        ${tasks.length > 6 ? `<div style="font-size:12px;color:var(--s3);padding:6px 10px">+ ${tasks.length - 6} more tasks…</div>` : ""}
+      </div>`;
+  }
+
+  document.getElementById("import-confirm-title").textContent = title;
+  document.getElementById("import-confirm-sub").textContent = sub;
+  document.getElementById("import-preview").innerHTML = previewHTML;
+
+  // Wait for app to be ready before showing modal
+  setTimeout(() => showM("m-import-confirm"), 600);
+}
+
+// ── Confirm and execute import ───────────────
+
+function confirmImport() {
+  if (!_pendingImport) return;
+  const { type, data } = _pendingImport;
+
+  if (type === "recipe") {
+    const recipes = DB.getList("recipes");
+    // Assign a fresh ID so it doesn't collide
+    const newRecipe = { ...data, id: DB.uid(), createdAt: Date.now(), importedAt: Date.now() };
+    recipes.push(newRecipe);
+    DB.set("recipes", recipes);
+
+    // Update stats
+    const stats = DB.get("stats") || { recipesAdded: 0, prepsDone: 0, timersRun: 0 };
+    stats.recipesAdded = (stats.recipesAdded || 0) + 1;
+    DB.set("stats", stats);
+
+    closeM("m-import-confirm");
+    toast(`✅ "${newRecipe.name}" imported!`);
+    _pendingImport = null;
+
+    // Navigate to recipes
+    setTimeout(() => navigate("recipes"), 400);
+
+  } else if (type === "prep") {
+    const existing = DB.getList("prep");
+    const newTasks = data.map(t => ({
+      ...t,
+      id: DB.uid(),
+      done: false,
+      createdAt: Date.now(),
+      importedAt: Date.now(),
+    }));
+    DB.set("prep", [...existing, ...newTasks]);
+
+    closeM("m-import-confirm");
+    toast(`✅ ${newTasks.length} prep tasks imported!`);
+    _pendingImport = null;
+
+    setTimeout(() => navigate("prep"), 400);
+  }
+}
+
+// ── Hook into app init ───────────────────────
+// Call this after the app initialises
+document.addEventListener("DOMContentLoaded", () => {
+  // Small delay to let the app fully boot first
+  setTimeout(checkForImportOnLoad, 800);
+});
+
+console.log("✅ Share system loaded");
+
+// ─────────────────────────────────────────────
+//  ESTIMATED YIELD CALCULATOR WITH VOLUME CONVERSION
+// ─────────────────────────────────────────────
+
+// Conversion factors to cups (base unit for calculation)
+const volumeConversions = {
+  // Liquid measures
+  'ml': 0.00422675,
+  'l': 4.22675,
+  'cup': 1,
+  'cups': 1,
+  'tsp': 0.0208333,
+  'teaspoon': 0.0208333,
+  'tbsp': 0.0625,
+  'tablespoon': 0.0625,
+  'fl oz': 0.125,
+  'oz': 0.125, // fluid oz
+  'quart': 4,
+  'quarts': 4,
+  'qt': 4,
+  'gallon': 16,
+  'gallons': 16,
+  'gal': 16,
+  'pint': 2,
+  'pints': 2,
+  'pt': 2
+};
+
+// Weight to volume conversions (approximate, in cups per unit weight)
+// These are approximations for common ingredients
+const weightToVolumeConversions = {
+  // Format: cups per gram
+  'flour': {
+    'g': 0.008,      // 1g flour ≈ 0.008 cups
+    'kg': 8,         // 1kg flour ≈ 8 cups
+    'oz': 0.227,     // 1oz flour ≈ 0.227 cups
+    'lb': 3.632      // 1lb flour ≈ 3.632 cups
+  },
+  'sugar': {
+    'g': 0.005,      // 1g sugar ≈ 0.005 cups
+    'kg': 5,
+    'oz': 0.142,
+    'lb': 2.267
+  },
+  'butter': {
+    'g': 0.0044,     // 1g butter ≈ 0.0044 cups
+    'kg': 4.4,
+    'oz': 0.125,
+    'lb': 2
+  },
+  'water': {
+    'g': 0.00423,    // 1g water ≈ 0.00423 cups (1ml water = 1g)
+    'kg': 4.23,
+    'oz': 0.12,
+    'lb': 1.92
+  },
+  'milk': {
+    'g': 0.00423,
+    'kg': 4.23,
+    'oz': 0.12,
+    'lb': 1.92
+  },
+  'oil': {
+    'g': 0.0046,     // 1g oil ≈ 0.0046 cups (oils are less dense)
+    'kg': 4.6,
+    'oz': 0.13,
+    'lb': 2.08
+  },
+  // Default for generic solid ingredients
+  'default': {
+    'g': 0.0042,     // Use water density as default
+    'kg': 4.2,
+    'oz': 0.119,
+    'lb': 1.917
+  }
+};
+
+function parseIngredientVolume(ingredientString) {
+  // Clean up the string
+  const cleaned = ingredientString.toLowerCase().trim();
+  
+  // Try to extract quantity and unit
+  // Patterns: "2 cups water", "500 g flour", "1.5 tbsp oil"
+  const pattern = /^(\d+\.?\d*)\s*([a-z]+)/i;
+  const match = cleaned.match(pattern);
+  
+  if (!match) return 0; // No parseable quantity/unit
+  
+  const quantity = parseFloat(match[1]);
+  const unit = match[2].toLowerCase();
+  
+  // Check if it's a direct volume unit
+  if (volumeConversions[unit]) {
+    return quantity * volumeConversions[unit];
+  }
+  
+  // Check if it's a weight unit - need to determine ingredient type
+  const weightUnits = ['g', 'kg', 'oz', 'lb'];
+  if (weightUnits.includes(unit)) {
+    // Try to identify ingredient type from the string
+    let ingredientType = 'default';
+    
+    // Common ingredient keywords
+    if (cleaned.includes('flour')) ingredientType = 'flour';
+    else if (cleaned.includes('sugar')) ingredientType = 'sugar';
+    else if (cleaned.includes('butter')) ingredientType = 'butter';
+    else if (cleaned.includes('water')) ingredientType = 'water';
+    else if (cleaned.includes('milk')) ingredientType = 'milk';
+    else if (cleaned.includes('oil') || cleaned.includes('olive') || cleaned.includes('vegetable')) ingredientType = 'oil';
+    else if (cleaned.includes('juice') || cleaned.includes('stock') || cleaned.includes('broth')) ingredientType = 'water';
+    
+    // Get conversion factor
+    const conversions = weightToVolumeConversions[ingredientType];
+    if (conversions && conversions[unit]) {
+      return quantity * conversions[unit];
+    }
+    
+    // Fallback to default
+    const defaultConversions = weightToVolumeConversions['default'];
+    if (defaultConversions[unit]) {
+      return quantity * defaultConversions[unit];
+    }
+  }
+  
+  // Special handling for count-based units
+  if (unit === 'no.' || unit === 'piece' || unit === 'bunch' || unit === 'sprig' || 
+      unit === 'can' || unit === 'clove' || unit === 'stick') {
+    // Estimate: 1 piece ≈ 0.25 cups (very rough approximation)
+    return quantity * 0.25;
+  }
+  
+  return 0; // Unable to convert
+}
+
+function calculateTotalVolume(ingredients, scaleFactor = 1) {
+  let totalCups = 0;
+  
+  ingredients.forEach(ingredient => {
+    const cups = parseIngredientVolume(ingredient);
+    totalCups += cups * scaleFactor;
+  });
+  
+  return totalCups;
+}
+
+function cupsToQuarts(cups) {
+  return cups / 4;
+}
+
+function formatYieldDisplay(quarts) {
+  if (quarts < 0.1) {
+    // Very small amount - show in cups
+    const cups = quarts * 4;
+    return `${cups.toFixed(1)} cup${cups !== 1 ? 's' : ''}`;
+  } else if (quarts < 1) {
+    // Less than a quart - show in cups
+    const cups = quarts * 4;
+    return `${cups.toFixed(1)} cup${cups !== 1 ? 's' : ''} (${quarts.toFixed(2)} qt)`;
+  } else if (quarts < 4) {
+    // 1-4 quarts
+    return `${quarts.toFixed(2)} quart${quarts !== 1 ? 's' : ''}`;
+  } else {
+    // More than 4 quarts - show in gallons too
+    const gallons = quarts / 4;
+    return `${quarts.toFixed(2)} quarts (${gallons.toFixed(2)} gal)`;
+  }
+}
+
+function updateEstimatedYield(recipe) {
+  const estimatedYieldEl = document.getElementById("estimated-yield");
+  if (!estimatedYieldEl) return;
+  
+  // Calculate total volume
+  const scaleFactor = yCurrent / yBasePortions;
+  const totalCups = calculateTotalVolume(recipe.ingredients || [], scaleFactor);
+  const totalQuarts = cupsToQuarts(totalCups);
+  
+  if (totalQuarts < 0.01) {
+    // Unable to calculate or very small
+    estimatedYieldEl.textContent = "Not calculable";
+    estimatedYieldEl.style.opacity = "0.5";
+  } else {
+    estimatedYieldEl.textContent = formatYieldDisplay(totalQuarts);
+    estimatedYieldEl.style.opacity = "1";
+  }
+}
+
+// ─────────────────────────────────────────────
+//  PHOTO VIEWER WITH PINCH-TO-ZOOM
+// ─────────────────────────────────────────────
+
+let photoViewerState = {
+  scale: 1,
+  posX: 0,
+  posY: 0,
+  lastDistance: 0,
+  lastPosX: 0,
+  lastPosY: 0,
+  isDragging: false,
+  startX: 0,
+  startY: 0,
+  currentPhotoIndex: 0,
+  photos: []
+};
+
+function openPhotoViewer(imageSrc, allPhotos = null) {
+  const modal = document.getElementById('m-photo-viewer');
+  const img = document.getElementById('photo-viewer-img');
+  const container = document.getElementById('photo-viewer-container');
+  
+  if (!modal || !img || !container) return;
+  
+  // Setup photo array for navigation
+  if (allPhotos && Array.isArray(allPhotos)) {
+    photoViewerState.photos = allPhotos;
+    photoViewerState.currentPhotoIndex = allPhotos.findIndex(p => 
+      (typeof p === 'string' ? p : p.data) === imageSrc
+    );
+    if (photoViewerState.currentPhotoIndex === -1) photoViewerState.currentPhotoIndex = 0;
+  } else {
+    photoViewerState.photos = [imageSrc];
+    photoViewerState.currentPhotoIndex = 0;
+  }
+  
+  // Reset state
+  photoViewerState.scale = 1;
+  photoViewerState.posX = 0;
+  photoViewerState.posY = 0;
+  photoViewerState.lastDistance = 0;
+  photoViewerState.isDragging = false;
+  
+  // Show modal
+  modal.style.display = 'flex';
+  
+  // Load current image
+  loadPhotoViewerImage();
+  
+  // Touch event handlers
+  container.addEventListener('touchstart', handleTouchStart, { passive: false });
+  container.addEventListener('touchmove', handleTouchMove, { passive: false });
+  container.addEventListener('touchend', handleTouchEnd, { passive: false });
+  
+  // Mouse event handlers for desktop
+  container.addEventListener('mousedown', handleMouseDown);
+  container.addEventListener('mousemove', handleMouseMove);
+  container.addEventListener('mouseup', handleMouseEnd);
+  container.addEventListener('mouseleave', handleMouseEnd);
+  
+  // Keyboard navigation
+  document.addEventListener('keydown', handlePhotoViewerKeyboard);
+  
+  // Prevent context menu
+  container.addEventListener('contextmenu', (e) => e.preventDefault());
+  
+  // Update navigation buttons visibility
+  updatePhotoNavigationButtons();
+}
+
+function loadPhotoViewerImage() {
+  const img = document.getElementById('photo-viewer-img');
+  const container = document.getElementById('photo-viewer-container');
+  
+  if (!img || !container) return;
+  
+  const currentPhoto = photoViewerState.photos[photoViewerState.currentPhotoIndex];
+  const imageSrc = typeof currentPhoto === 'string' ? currentPhoto : currentPhoto.data;
+  
+  // Reset zoom state
+  photoViewerState.scale = 1;
+  photoViewerState.posX = 0;
+  photoViewerState.posY = 0;
+  
+  img.src = imageSrc;
+  
+  // Image is automatically centered and scaled by CSS (max-width/max-height + flexbox)
+  // Just update the transform to reflect current state
+  img.onload = () => {
+    updatePhotoTransform();
+  };
+}
+
+function handlePhotoViewerKeyboard(e) {
+  if (document.getElementById('m-photo-viewer').style.display !== 'flex') return;
+  
+  if (e.key === 'Escape') {
+    closePhotoViewer();
+  } else if (e.key === 'ArrowLeft') {
+    navigatePhotoPrev();
+  } else if (e.key === 'ArrowRight') {
+    navigatePhotoNext();
+  }
+}
+
+function navigatePhotoNext() {
+  if (photoViewerState.currentPhotoIndex < photoViewerState.photos.length - 1) {
+    photoViewerState.currentPhotoIndex++;
+    photoViewerState.scale = 1;
+    photoViewerState.posX = 0;
+    photoViewerState.posY = 0;
+    loadPhotoViewerImage();
+    updatePhotoNavigationButtons();
+  }
+}
+
+function navigatePhotoPrev() {
+  if (photoViewerState.currentPhotoIndex > 0) {
+    photoViewerState.currentPhotoIndex--;
+    photoViewerState.scale = 1;
+    photoViewerState.posX = 0;
+    photoViewerState.posY = 0;
+    loadPhotoViewerImage();
+    updatePhotoNavigationButtons();
+  }
+}
+
+function updatePhotoNavigationButtons() {
+  const prevBtn = document.getElementById('photo-viewer-prev');
+  const nextBtn = document.getElementById('photo-viewer-next');
+  const counter = document.getElementById('photo-viewer-counter');
+  
+  const hasMultiple = photoViewerState.photos.length > 1;
+  
+  if (prevBtn) {
+    prevBtn.style.display = hasMultiple && photoViewerState.currentPhotoIndex > 0 ? 'flex' : 'none';
+  }
+  
+  if (nextBtn) {
+    nextBtn.style.display = hasMultiple && photoViewerState.currentPhotoIndex < photoViewerState.photos.length - 1 ? 'flex' : 'none';
+  }
+  
+  if (counter) {
+    if (hasMultiple) {
+      counter.textContent = `${photoViewerState.currentPhotoIndex + 1} / ${photoViewerState.photos.length}`;
+      counter.style.display = 'block';
+    } else {
+      counter.style.display = 'none';
+    }
+  }
+}
+
+function navigatePhoto(direction) {
+  if (direction > 0) {
+    navigatePhotoNext();
+  } else {
+    navigatePhotoPrev();
+  }
+}
+
+function closePhotoViewer() {
+  const modal = document.getElementById('m-photo-viewer');
+  const container = document.getElementById('photo-viewer-container');
+  
+  if (modal) modal.style.display = 'none';
+  
+  // Remove event listeners
+  if (container) {
+    container.removeEventListener('touchstart', handleTouchStart);
+    container.removeEventListener('touchmove', handleTouchMove);
+    container.removeEventListener('touchend', handleTouchEnd);
+    container.removeEventListener('mousedown', handleMouseDown);
+    container.removeEventListener('mousemove', handleMouseMove);
+    container.removeEventListener('mouseup', handleMouseEnd);
+    container.removeEventListener('mouseleave', handleMouseEnd);
+  }
+  
+  document.removeEventListener('keydown', handlePhotoViewerKeyboard);
+}
+
+function handleTouchStart(e) {
+  if (e.touches.length === 2) {
+    // Pinch zoom
+    e.preventDefault();
+    photoViewerState.lastDistance = getDistance(e.touches[0], e.touches[1]);
+  } else if (e.touches.length === 1) {
+    // Pan
+    photoViewerState.isDragging = true;
+    photoViewerState.startX = e.touches[0].clientX - photoViewerState.posX;
+    photoViewerState.startY = e.touches[0].clientY - photoViewerState.posY;
+  }
+}
+
+function handleTouchMove(e) {
+  if (e.touches.length === 2) {
+    // Pinch zoom
+    e.preventDefault();
+    const distance = getDistance(e.touches[0], e.touches[1]);
+    const delta = distance - photoViewerState.lastDistance;
+    
+    photoViewerState.scale += delta * 0.01;
+    photoViewerState.scale = Math.max(1, Math.min(photoViewerState.scale, 5));
+    
+    photoViewerState.lastDistance = distance;
+    updatePhotoTransform();
+  } else if (e.touches.length === 1 && photoViewerState.isDragging) {
+    // Pan - only if zoomed in
+    if (photoViewerState.scale > 1) {
+      e.preventDefault();
+      photoViewerState.posX = e.touches[0].clientX - photoViewerState.startX;
+      photoViewerState.posY = e.touches[0].clientY - photoViewerState.startY;
+      updatePhotoTransform();
+    }
+  }
+}
+
+function handleTouchEnd(e) {
+  photoViewerState.isDragging = false;
+  if (e.touches.length < 2) {
+    photoViewerState.lastDistance = 0;
+  }
+}
+
+function handleMouseDown(e) {
+  // Only allow dragging if zoomed in
+  if (photoViewerState.scale > 1) {
+    e.preventDefault();
+    photoViewerState.isDragging = true;
+    photoViewerState.startX = e.clientX - photoViewerState.posX;
+    photoViewerState.startY = e.clientY - photoViewerState.posY;
+  }
+}
+
+function handleMouseMove(e) {
+  if (!photoViewerState.isDragging || photoViewerState.scale <= 1) return;
+  e.preventDefault();
+  photoViewerState.posX = e.clientX - photoViewerState.startX;
+  photoViewerState.posY = e.clientY - photoViewerState.startY;
+  updatePhotoTransform();
+}
+
+function handleMouseEnd(e) {
+  photoViewerState.isDragging = false;
+}
+
+function getDistance(touch1, touch2) {
+  const dx = touch1.clientX - touch2.clientX;
+  const dy = touch1.clientY - touch2.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function updatePhotoTransform() {
+  const img = document.getElementById('photo-viewer-img');
+  if (!img) return;
+  
+  // Apply transform - image is already centered by CSS
+  const transform = `translate(${photoViewerState.posX}px, ${photoViewerState.posY}px) scale(${photoViewerState.scale})`;
+  img.style.transform = transform;
+  img.style.transition = photoViewerState.isDragging ? 'none' : 'transform 0.3s ease-out';
+}
+
+// Make photos in recipes clickable
+function makePhotosClickable() {
+  // This will be called when displaying recipe photos
+  document.querySelectorAll('.recipe-photo-clickable').forEach(photo => {
+    photo.style.cursor = 'pointer';
+    photo.onclick = () => openPhotoViewer(photo.src || photo.style.backgroundImage.slice(5, -2));
+  });
+}
+
+// ─────────────────────────────────────────────
+//  PDF EXPORT FUNCTIONALITY
+// ─────────────────────────────────────────────
+
+let currentShareType = null; // 'recipe' or 'prep'
+let currentShareId = null;
+
+function exportCurrentItemAsPDF() {
+  if (currentShareType === 'recipe') {
+    exportRecipeAsPDF(currentShareId);
+  } else if (currentShareType === 'prep') {
+    exportPrepListAsPDF();
+  }
+}
+
+function exportRecipeAsPDF(recipeId) {
+  const recipes = DB.getList("recipes");
+  const recipe = recipes.find(r => r.id === recipeId);
+  
+  if (!recipe) {
+    toast("❌ Recipe not found");
+    return;
+  }
+  
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    let yPos = 20;
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+    
+    // Title
+    doc.setFontSize(22);
+    doc.setFont(undefined, 'bold');
+    doc.text(recipe.name, margin, yPos);
+    yPos += 10;
+    
+    // Metadata
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(100);
+    const metadata = `${recipe.portions} portions | ${capitalize(recipe.category || 'Recipe')} | ${recipe.time || 'N/A'}`;
+    doc.text(metadata, margin, yPos);
+    yPos += 15;
+    
+    // Allergens
+    if (recipe.allergens && recipe.allergens.length > 0) {
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(0);
+      doc.text('ALLERGENS', margin, yPos);
+      yPos += 7;
+      
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      doc.text(recipe.allergens.join(', '), margin, yPos);
+      yPos += 12;
+    }
+    
+    // Ingredients
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(0);
+    doc.text('INGREDIENTS', margin, yPos);
+    yPos += 7;
+    
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    (recipe.ingredients || []).forEach((ing, idx) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      doc.text(`- ${ing}`, margin + 5, yPos);
+      yPos += 6;
+    });
+    yPos += 8;
+    
+    // Method
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text('METHOD', margin, yPos);
+    yPos += 7;
+    
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    (recipe.method || []).forEach((step, idx) => {
+      if (yPos > 260) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      const stepText = `${idx + 1}. ${step}`;
+      const lines = doc.splitTextToSize(stepText, contentWidth - 10);
+      
+      lines.forEach(line => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        doc.text(line, margin + 5, yPos);
+        yPos += 6;
+      });
+      yPos += 4;
+    });
+    
+    // Save
+    const fileName = `${recipe.name.replace(/[^a-z0-9]/gi, '_')}_recipe.pdf`;
+    doc.save(fileName);
+    toast("✅ PDF exported!");
+    
+  } catch (error) {
+    console.error('PDF export error:', error);
+    toast("❌ Failed to export PDF");
+  }
+}
+
+function exportPrepListAsPDF() {
+  const allPrep = DB.getList("prep");
+  
+  if (allPrep.length === 0) {
+    toast("❌ No prep tasks to export");
+    return;
+  }
+  
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    let yPos = 20;
+    const margin = 20;
+    const pageWidth = doc.internal.pageSize.width;
+    
+    // Title
+    doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
+    doc.text('Prep List', margin, yPos);
+    yPos += 8;
+    
+    // Date
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(100);
+    const dateStr = new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+    doc.text(dateStr, margin, yPos);
+    yPos += 15;
+    
+    // Progress summary
+    const total = allPrep.length;
+    const done = allPrep.filter(p => p.done).length;
+    const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+    doc.text(`Progress: ${done} of ${total} complete (${pct}%)`, margin, yPos);
+    yPos += 15;
+    
+    // Group tasks
+    const urgent = allPrep.filter(p => !p.done && p.priority === 'urgent');
+    const normal = allPrep.filter(p => !p.done && p.priority !== 'urgent');
+    const doneItems = allPrep.filter(p => p.done);
+    
+    // Urgent tasks
+    if (urgent.length > 0) {
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(212, 48, 48);
+      doc.text('URGENT', margin, yPos);
+      yPos += 8;
+      
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(0);
+      
+      urgent.forEach(task => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        const taskText = `[ ] ${task.name}${task.station ? ' | ' + task.station : ''}`;
+        doc.text(taskText, margin + 5, yPos);
+        yPos += 6;
+      });
+      yPos += 8;
+    }
+    
+    // Normal tasks
+    if (normal.length > 0) {
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(0);
+      doc.text('TODAY', margin, yPos);
+      yPos += 8;
+      
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      
+      normal.forEach(task => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        const taskText = `[ ] ${task.name}${task.station ? ' | ' + task.station : ''}`;
+        doc.text(taskText, margin + 5, yPos);
+        yPos += 6;
+      });
+      yPos += 8;
+    }
+    
+    // Done tasks
+    if (doneItems.length > 0) {
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(61, 114, 9);
+      doc.text('COMPLETED', margin, yPos);
+      yPos += 8;
+      
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(100);
+      
+      doneItems.forEach(task => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        const taskText = `[X] ${task.name}${task.station ? ' | ' + task.station : ''}`;
+        doc.text(taskText, margin + 5, yPos);
+        yPos += 6;
+      });
+    }
+    
+    // Save
+    const fileName = `prep_list_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+    toast("✅ PDF exported!");
+    
+  } catch (error) {
+    console.error('PDF export error:', error);
+    toast("❌ Failed to export PDF");
+  }
+}
+
+console.log("✅ Photo viewer and PDF export loaded");
+

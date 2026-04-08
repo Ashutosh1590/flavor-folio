@@ -6,9 +6,11 @@
     <title>Flavor Folio</title>
     <link rel="icon" type="image/png" id="favicon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🍃</text></svg>" />
     <link rel="stylesheet" href="style.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;0,9..144,900;1,9..144,700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=Fraunces:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
     <!-- Tesseract.js for OCR -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <!-- jsPDF for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   </head>
   <body>
 
@@ -224,6 +226,15 @@
         <span id="detail-emoji">🍽</span>
         <button class="back-btn" onclick="navigate('recipes')">←</button>
         <button class="edit-btn" onclick="editCurrentRecipe()">✏️</button>
+        <button class="share-btn-top" onclick="shareCurrentRecipe()" title="Share Recipe">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3"></circle>
+            <circle cx="6" cy="12" r="3"></circle>
+            <circle cx="18" cy="19" r="3"></circle>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+          </svg>
+        </button>
         <div class="rhero-ov">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
             <div class="rhero-ttl" id="detail-title">Recipe</div>
@@ -239,6 +250,13 @@
           <button class="ybtn" onclick="adjY(-1)">−</button>
           <div class="yval" id="yv">1</div>
           <button class="ybtn" onclick="adjY(1)">+</button>
+        </div>
+        <!-- Estimated Yield Display -->
+        <div style="background:var(--gl);border-radius:13px;padding:11px 16px;margin:0 16px 10px;border:1.5px solid var(--gm)">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:12px;font-weight:600;color:var(--gd)">📊 Estimated Yield</span>
+            <span style="font-size:15px;font-weight:700;color:var(--gd);font-family:'JetBrains Mono',monospace" id="estimated-yield">4 portions</span>
+          </div>
         </div>
         <div class="dvdr"></div>
         <div style="background:var(--w);margin-bottom:4px">
@@ -283,7 +301,10 @@
               <div class="hsub" id="prep-date">Today</div>
               <div class="htitle">Prep List</div>
             </div>
-            <button class="btn-ico accent" onclick="showM('m-addprep')">＋</button>
+            <div style="display:flex;gap:8px">
+              <button class="btn-ico" onclick="sharePrepList()" title="Share Prep List">↗</button>
+              <button class="btn-ico accent" onclick="showM('m-addprep')">＋</button>
+            </div>
           </div>
           <div style="margin-top:11px">
             <div style="display:flex;justify-content:space-between;margin-bottom:6px">
@@ -563,9 +584,15 @@
         <div class="mhandle"></div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
           <div class="mtitle" style="margin:0" data-i18n="manual_entry">Manual Entry</div>
-          <button class="btn-ico" onclick="openCameraForRecipe()" title="Add Photo">📸</button>
+          <button class="btn-ico" onclick="openMultiplePhotosForRecipe()" title="Add Photos">📸</button>
         </div>
         <div class="msub" data-i18n="fill_details">Fill in all the recipe details below.</div>
+        
+        <!-- Multiple Photos Preview Container -->
+        <div id="recipe-photos-container" style="margin:10px 0 15px;display:none">
+          <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">📸 Recipe Photos</div>
+          <div id="recipe-photos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px"></div>
+        </div>
         
         <label class="flbl" data-i18n="recipe_name_req">Recipe Name *</label>
         <input class="finput" id="r-name" type="text" data-i18n-placeholder="recipe_name_placeholder" placeholder="e.g. Duck Confit" />
@@ -660,8 +687,17 @@
     <div class="overlay" id="m-edit-recipe" onclick="bgC(event,'m-edit-recipe')">
       <div class="modal">
         <div class="mhandle"></div>
-        <div class="mtitle">Edit Recipe</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div class="mtitle" style="margin:0">Edit Recipe</div>
+          <button class="btn-ico" onclick="openMultiplePhotosForEditRecipe()" title="Add Photos">📸</button>
+        </div>
         <div class="msub">Update recipe details below.</div>
+        
+        <!-- Multiple Photos Preview Container for Edit -->
+        <div id="edit-recipe-photos-container" style="margin:10px 0 15px;display:none">
+          <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">📸 Recipe Photos</div>
+          <div id="edit-recipe-photos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px"></div>
+        </div>
         
         <label class="flbl">Recipe Name *</label>
         <input class="finput" id="e-name" type="text" placeholder="e.g. Duck Confit" />
@@ -1016,6 +1052,83 @@
         ></textarea>
 
         <button class="mbtn p" onclick="savePlatingGuide()">✅ Save Plating Guide</button>
+      </div>
+    </div>
+
+    <!-- SHARE MODAL -->
+    <div class="overlay" id="m-share" onclick="bgC(event,'m-share')">
+      <div class="modal">
+        <div class="mhandle"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div class="mtitle" style="margin:0" id="share-modal-title">Share</div>
+          <button class="btn-ico" onclick="closeM('m-share')">✕</button>
+        </div>
+        <div class="msub" id="share-modal-sub">Anyone with this link can import this into their Flavor Folio.</div>
+
+        <!-- QR Code display -->
+        <div id="share-qr-container" style="display:flex;flex-direction:column;align-items:center;margin:8px 0 20px">
+          <div id="share-qr" style="width:180px;height:180px;background:var(--s1);border-radius:16px;display:flex;align-items:center;justify-content:center;overflow:hidden"></div>
+          <div style="font-size:11px;color:var(--s3);margin-top:10px;text-align:center">Scan to import on another device</div>
+        </div>
+
+        <!-- Link box -->
+        <div style="background:var(--off);border:1.5px solid var(--s2);border-radius:13px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+          <div id="share-link-text" style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--s4);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+          <button onclick="copyShareLink()" style="background:var(--g);color:#fff;border:none;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Roboto',sans-serif;white-space:nowrap;flex-shrink:0">Copy</button>
+        </div>
+
+        <!-- Share via buttons -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px">
+          <button class="share-via-btn" onclick="shareViaWhatsApp()">
+            <span style="font-size:20px">💬</span>
+            <span>WhatsApp</span>
+          </button>
+          <button class="share-via-btn" onclick="shareViaNative()">
+            <span style="font-size:20px">↗</span>
+            <span>More Options</span>
+          </button>
+        </div>
+
+        <!-- PDF Export Button -->
+        <button class="share-via-btn" onclick="exportCurrentItemAsPDF()" style="width:100%;margin-bottom:10px">
+          <span style="font-size:20px">📄</span>
+          <span>Export as PDF</span>
+        </button>
+
+        <div style="background:var(--gl);border-radius:12px;padding:11px 14px;font-size:12px;color:var(--gd);line-height:1.55">
+          The recipient opens the link in their browser to import directly into their Flavor Folio.
+        </div>
+      </div>
+    </div>
+
+    <!-- IMPORT CONFIRMATION MODAL -->
+    <div class="overlay" id="m-import-confirm" onclick="bgC(event,'m-import-confirm')">
+      <div class="modal">
+        <div class="mhandle"></div>
+        <div class="mtitle" id="import-confirm-title">Import Recipe?</div>
+        <div class="msub" id="import-confirm-sub">A shared item was detected in this link.</div>
+
+        <div id="import-preview" style="background:var(--off);border-radius:16px;padding:16px;margin-bottom:18px"></div>
+
+        <button class="mbtn p" onclick="confirmImport()">Import Now ✓</button>
+        <button class="mbtn s" onclick="closeM('m-import-confirm')">Cancel</button>
+      </div>
+    </div>
+
+    <!-- PHOTO VIEWER MODAL WITH PINCH-TO-ZOOM -->
+    <div class="overlay" id="m-photo-viewer" onclick="closePhotoViewer()" style="background:rgba(0,0,0,0.95);z-index:10000">
+      <button onclick="closePhotoViewer()" style="position:absolute;top:20px;right:20px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.2);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.3);color:#fff;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10001">✕</button>
+      
+      <!-- Navigation arrows -->
+      <button id="photo-viewer-prev" onclick="event.stopPropagation();navigatePhoto(-1)" style="position:absolute;left:20px;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.2);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.3);color:#fff;font-size:24px;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:10001">←</button>
+      
+      <button id="photo-viewer-next" onclick="event.stopPropagation();navigatePhoto(1)" style="position:absolute;right:20px;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.2);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.3);color:#fff;font-size:24px;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:10001">→</button>
+      
+      <!-- Photo counter -->
+      <div id="photo-viewer-counter" style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.6);backdrop-filter:blur(10px);color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;z-index:10001;display:none"></div>
+      
+      <div id="photo-viewer-container" onclick="event.stopPropagation()" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none">
+        <img id="photo-viewer-img" src="" style="max-width:100%;max-height:100%;object-fit:contain;transform-origin:center center;transition:transform 0.3s ease-out" />
       </div>
     </div>
 

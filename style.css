@@ -865,8 +865,23 @@ body {
   padding: 14px 16px;
   box-shadow: var(--shadow-sm);
 }
-.ing-name { font-size: 14px; font-weight: 600; color: var(--ink); }
-.ing-qty { font-size: 12px; font-weight: 700; color: var(--s3); margin-top: 3px; letter-spacing: .6px; }
+.ing-name { 
+  font-size: 14px; 
+  font-weight: 500; 
+  color: var(--ink); 
+  flex: 1;
+}
+.ing-qty { 
+  font-size: 13px; 
+  font-weight: 700; 
+  color: var(--gd); 
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--gl);
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  min-width: fit-content;
+}
 
 /* ─── METHOD STEPS ─── */
 .step {
@@ -999,6 +1014,21 @@ body {
   transition: all .15s;
 }
 .edit-btn:active { transform: scale(.92); }
+
+.share-btn-top {
+  position: absolute;
+  top: 16px; right: 62px;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.28);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.28);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: #fff;
+  cursor: pointer;
+  transition: all .15s;
+}
+.share-btn-top:active { transform: scale(.92); }
 
 /* ─── UNIT CONVERSION TOGGLE ─── */
 .unit-toggle {
